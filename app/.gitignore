@@ -36,4 +36,23 @@ out/
 ### VS Code ###
 .vscode/
 
+# Java
+# =========================
+*.class
+*.log
+hs_err_pid*
+replay_pid*
+
+# =========================
+# Environment and secrets
+# =========================
 .env
+.env.*
+!.env.example
+
+# =========================
+# Temporary files
+# =========================
+*.tmp
+*.swp
+*.bak
