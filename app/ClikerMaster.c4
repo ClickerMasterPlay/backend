@@ -1,0 +1,285 @@
+specification {
+  element actor {
+    style {
+      shape person
+      color blue
+    }
+  }
+
+  element system {
+    style {
+      color muted
+    }
+  }
+
+  element container {
+    style {
+      shape rectangle
+      color primary
+    }
+  }
+
+  element databasePost {
+    style {
+      shape storage
+      color green
+    }
+  }
+
+  element databaseRedis {
+    style {
+      shape storage
+      color red
+    }
+  }
+
+  element browser {
+    style {
+      shape browser
+      color sky
+    }
+  }
+
+  element table {
+      style {
+        shape rectangle
+        color primary
+      }
+    }
+
+    element tableCore {
+      style {
+        shape rectangle
+        color blue
+      }
+    }
+
+    element tableEconomy {
+      style {
+        shape rectangle
+        color green
+      }
+    }
+
+    element tableGame {
+      style {
+        shape rectangle
+        color indigo
+      }
+    }
+
+    element tableSupport {
+      style {
+        shape rectangle
+        color muted
+      }
+    }
+
+    relationship fk {
+      color slate
+      line solid
+      head diamond
+    }
+
+    relationship owns {
+      color green
+      line solid
+    }
+
+  relationship http {
+    color blue
+    line solid
+  }
+
+  relationship jdbc {
+    color green
+    line solid
+  }
+
+  relationship redis {
+    color red
+    line dashed
+  }
+}
+
+model {
+  player = actor 'Игрок' {
+    description 'Гость или зарегистрированный пользователь'
+  }
+
+    webClient = browser 'Web-клиент (React)' {
+          technology 'React + TypeScript'
+          icon tech:react
+        }
+
+  webClient = browser 'Web-клиент (React)' {
+    technology 'React + TypeScript'
+    description 'Игровое поле, магазин, инвентарь, профиль, рейтинг'
+  }
+
+  rmp = system 'Resource Magnate Platform' {
+    description 'Backend idle-игры: клики, экономика, рейтинг, прогресс'
+
+    api = container 'API (Spring Boot)' {
+      technology 'Java 21 + Spring Boot 3'
+      icon tech:spring
+    }
+
+    postgres = databasePost 'PostgreSQL' {
+      technology 'PostgreSQL 16'
+      icon tech:postgresql
+    }
+
+    redis = databaseRedis 'Redis' {
+      technology 'Redis 7'
+      icon tech:redis
+    }
+
+  }
+
+
+  player -> webClient 'Играет в браузере'
+
+  webClient -[http]-> rmp.api 'HTTPS + X-User-Id' {
+    technology 'REST'
+  }
+
+  rmp.api -[jdbc]-> rmp.postgres 'Читает / пишет прогресс и экономику' {
+    technology 'JDBC / Spring Data JPA'
+  }
+
+  rmp.api -[redis]-> rmp.redis 'Rate-limit + кэш' {
+    technology 'Spring Data Redis'
+  }
+
+  users = tableCore 'users' {
+      technology 'UUID PK'
+      description 'id, is_guest, email, password_hash,\ncreated_at, last_login_at'
+    }
+
+    player_progress = tableCore 'player_progress' {
+      technology 'user_id PK/FK'
+      description 'credits, click_power,\nequipped_tool_id, last_seen_at,\nversion (optimistic lock)'
+    }
+
+
+    ledger = tableEconomy 'ledger' {
+      technology 'UUID PK'
+      description 'id, user_id, operation_type,\namount, product_type, product_id,\npurchase_id, created_at'
+    }
+
+    purchases = tableEconomy 'purchases' {
+      technology 'UUID PK'
+      description 'id, user_id, product_type,\nproduct_id, price, status,\nidempotency_key, created_at'
+    }
+
+
+    block_types = tableGame 'block_types' {
+      technology 'code PK'
+      description 'code, name, rarity,\nmax_hp, reward_credits,\nreward_resource, reward_amount'
+    }
+
+    current_blocks = tableGame 'current_blocks' {
+      technology 'user_id PK/FK'
+      description 'user_id, block_type,\ncurrent_hp, max_hp, issued_at'
+    }
+
+    tools = tableGame 'tools' {
+      technology 'code PK'
+      description 'code, name, rarity,\npower_multiplier, price'
+    }
+
+    machines = tableGame 'machines' {
+      technology 'code PK'
+      description 'code, name, rarity,\nproduction_per_hour, price'
+    }
+
+    // ======================
+    // INVENTORY
+    // ======================
+    inventory_resources = tableSupport 'inventory_resources' {
+      technology 'user_id + resource'
+      description 'user_id, resource_code, amount'
+    }
+
+    inventory_tools = tableSupport 'inventory_tools' {
+      technology 'user_id + tool_code'
+      description 'user_id, tool_code, acquired_at'
+    }
+
+    inventory_machines = tableSupport 'inventory_machines' {
+      technology 'user_id + machine_code'
+      description 'user_id, machine_code,\nis_installed, installed_at,\nlast_collected_at'
+    }
+
+
+    users -[owns]-> player_progress '1:1'
+    users -[fk]-> current_blocks '1:1'
+    users -[fk]-> ledger '1:N'
+    users -[fk]-> purchases '1:N'
+    users -[fk]-> inventory_resources '1:N'
+    users -[fk]-> inventory_tools '1:N'
+    users -[fk]-> inventory_machines '1:N'
+
+
+    player_progress -[fk]-> tools 'equipped_tool_id'
+
+
+    current_blocks -[fk]-> block_types 'block_type'
+    inventory_tools -[fk]-> tools 'tool_code'
+    inventory_machines -[fk]-> machines 'machine_code'
+}
+
+views {
+  view containers of rmp {
+    title 'Resource Magnate — Container Diagram (C2)'
+    description 'Основные контейнеры платформы'
+    include *
+    include player, webClient
+
+    style rmp.api {
+      color primary
+    }
+    style rmp.postgres {
+      color green
+    }
+    style rmp.redis {
+      color red
+    }
+  }
+
+  view index {
+    title 'Resource Magnate — System Context (C1)'
+    include *
+  }
+
+  view db_schema {
+      title 'Resource Magnate — Database Schema'
+      description 'Основные таблицы и связи'
+        include *
+
+      style users, player_progress {
+        color blue
+      }
+      style ledger, purchases {
+        color green
+      }
+      style block_types, current_blocks, tools, machines {
+        color indigo
+      }
+      style inventory_resources, inventory_tools, inventory_machines {
+        color muted
+      }
+    }
+
+    view db_core {
+      title 'DB — Core & Economy'
+      include users, player_progress, ledger, purchases
+    }
+
+    view db_game {
+      title 'DB — Game & Inventory'
+      include users, current_blocks, block_types, tools, machines,
+              inventory_resources, inventory_tools, inventory_machines
+    }
+}
