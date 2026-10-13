@@ -15,14 +15,14 @@ specification {
   element container {
     style {
       shape rectangle
-      color primary
+      color blue
     }
   }
 
   element databasePost {
     style {
       shape storage
-      color green
+      color blue
     }
   }
 
@@ -92,7 +92,7 @@ specification {
   }
 
   relationship jdbc {
-    color green
+    color blue
     line solid
   }
 
@@ -106,11 +106,6 @@ model {
   player = actor 'Игрок' {
     description 'Гость или зарегистрированный пользователь'
   }
-
-    webClient = browser 'Web-клиент (React)' {
-          technology 'React + TypeScript'
-          icon tech:react
-        }
 
   webClient = browser 'Web-клиент (React)' {
     technology 'React + TypeScript'
