@@ -1,12 +1,20 @@
-package com.resourcemagnate.app.game;
+package com.resourcemagnate.app.game.model;
 
 import com.resourcemagnate.app.user.User;
 import jakarta.persistence.*;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@Entity
+@Table(name = "current_blocks")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class CurrentBlock {
 
     @Id

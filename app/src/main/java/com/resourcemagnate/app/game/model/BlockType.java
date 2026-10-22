@@ -1,10 +1,10 @@
-package com.resourcemagnate.app.game;
+package com.resourcemagnate.app.game.model;
 
 import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "users")
+@Table(name = "block_types")
 @Getter
 @Setter
 @NoArgsConstructor

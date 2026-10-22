@@ -45,8 +45,18 @@ public class GlobalExceptionHandler {
         log.warn("Business error at {}: {}",
                 request.getRequestURI(), ex.getMessage());
 
+        HttpStatus status = switch (ex.getErrorCode()) {
+            case "USER_NOT_FOUND", "PROGRESS_NOT_FOUND" ->
+                    HttpStatus.NOT_FOUND;
+            case "RATE_LIMIT_EXCEEDED" ->
+                    HttpStatus.TOO_MANY_REQUESTS;
+            case "INVALID_BATCH_SIZE" ->
+                    HttpStatus.BAD_REQUEST;
+            default -> HttpStatus.BAD_REQUEST;
+        };
+
         return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
+                .status(status)
                 .body(ApiError.of(ex.getErrorCode(), ex.getMessage()));
     }
 

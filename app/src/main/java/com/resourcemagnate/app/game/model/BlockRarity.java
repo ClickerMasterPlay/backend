@@ -1,4 +1,4 @@
-package com.resourcemagnate.app.game;
+package com.resourcemagnate.app.game.model;
 
 public enum BlockRarity {
     COMMON,
