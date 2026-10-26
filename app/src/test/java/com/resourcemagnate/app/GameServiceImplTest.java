@@ -4,6 +4,7 @@ package com.resourcemagnate.app;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.resourcemagnate.app.common.exception.BusinessException;
 import com.resourcemagnate.app.economy.EconomyService;
+import com.resourcemagnate.app.economy.model.LedgerOperationType;
 import com.resourcemagnate.app.game.ClickRateLimiter;
 import com.resourcemagnate.app.game.GameService;
 import com.resourcemagnate.app.game.dto.ClickBatchRequest;
@@ -12,6 +13,7 @@ import com.resourcemagnate.app.game.model.BlockRarity;
 import com.resourcemagnate.app.game.model.BlockType;
 import com.resourcemagnate.app.game.model.CurrentBlock;
 import com.resourcemagnate.app.game.model.ProcessedClickBatch;
+import com.resourcemagnate.app.game.model.Tool;
 import com.resourcemagnate.app.game.repository.BlockTypeRepository;
 import com.resourcemagnate.app.game.repository.CurrentBlockRepository;
 import com.resourcemagnate.app.game.repository.ProcessedClickBatchRepository;
@@ -177,5 +179,84 @@ class GameServiceImplTest {
 
         verify(batchRepository, never())
                 .save(any(ProcessedClickBatch.class));
+    }
+
+    @Test
+    void processClickBatch_shouldApplyEquippedToolMultiplier() {
+        progress.setEquippedToolCode("iron_pickaxe");
+        Tool tool = new Tool();
+        tool.setCode("iron_pickaxe");
+        tool.setPowerMultiplier(1.8);
+        ClickBatchRequest request = new ClickBatchRequest(batchId, 10);
+
+        stubAcceptedClick(request);
+        when(toolRepository.findById("iron_pickaxe"))
+                .thenReturn(Optional.of(tool));
+
+        ClickBatchResponse response = gameService.processClickBatch(userId, request);
+
+        assertFalse(response.destroyed());
+        assertEquals(82, response.block().currentHp());
+        verify(toolRepository).findById("iron_pickaxe");
+    }
+
+    @Test
+    void processClickBatch_shouldRewardDestroyedBlockAndWriteLedger() {
+        currentBlock.setCurrentHp(10);
+        blockType.setRewardCredits(5L);
+        blockType.setRewardResource("stone");
+        blockType.setRewardAmount(2);
+        ClickBatchRequest request = new ClickBatchRequest(batchId, 10);
+
+        stubAcceptedClick(request);
+        when(blockTypeRepository.findByCode("stone"))
+                .thenReturn(Optional.of(blockType));
+        doAnswer(invocation -> {
+            PlayerProgress target = invocation.getArgument(0);
+            long amount = invocation.getArgument(1);
+            target.setCredits(target.getCredits() + amount);
+            return null;
+        }).when(economyService).creditCredits(any(PlayerProgress.class), anyLong());
+        doAnswer(invocation -> {
+            PlayerProgress target = invocation.getArgument(0);
+            String code = invocation.getArgument(1);
+            long amount = invocation.getArgument(2);
+            target.setResources(Map.of(code, amount));
+            return null;
+        }).when(economyService).addResource(
+                any(PlayerProgress.class), anyString(), anyLong()
+        );
+
+        ClickBatchResponse response = gameService.processClickBatch(userId, request);
+
+        assertTrue(response.destroyed());
+        assertEquals(5L, response.rewards().credits());
+        assertEquals(2L, response.rewards().resources().get("stone"));
+        assertEquals(105L, response.balance().credits());
+        assertEquals(2L, response.balance().resources().get("stone"));
+        verify(progressRepository).save(progress);
+        verify(economyService).recordCurrencyOperation(
+                userId,
+                LedgerOperationType.CLICK_REWARD,
+                5L,
+                null,
+                "stone",
+                null,
+                105L
+        );
+    }
+
+    private void stubAcceptedClick(ClickBatchRequest request) {
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(progressRepository.findByUserIdForUpdate(userId))
+                .thenReturn(Optional.of(progress));
+        when(batchRepository.findByUserIdAndClientBatchId(
+                userId, request.clientBatchId()
+        )).thenReturn(Optional.empty());
+        when(clickRateLimiter.allow(userId)).thenReturn(true);
+        when(currentBlockRepository.findByUserIdForUpdate(userId))
+                .thenReturn(Optional.of(currentBlock));
+        when(objectMapper.valueToTree(any(ClickBatchResponse.class)))
+                .thenReturn(new ObjectMapper().createObjectNode());
     }
 }

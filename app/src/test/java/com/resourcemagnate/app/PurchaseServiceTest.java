@@ -174,6 +174,52 @@ class PurchaseServiceTest {
         verifyNoInteractions(progressRepository, ledgerRepository);
     }
 
+    @Test
+    void purchase_shouldDebitCreditsAndAddToolToInventory() {
+        PurchaseRequest request = new PurchaseRequest(
+                ProductType.TOOL, "wooden_pickaxe"
+        );
+        stubNewPurchase();
+
+        PurchaseResponse response = purchaseService.purchase(
+                userId, idempotencyKey, request
+        );
+
+        assertEquals(250L, response.price());
+        assertEquals(250L, response.balance().credits());
+        verify(inventoryToolRepository).save(argThat(item ->
+                item.getUserId().equals(userId)
+                        && item.getToolCode().equals("wooden_pickaxe")
+        ));
+        verify(ledgerRepository).save(argThat(entry ->
+                entry.getAmount() == -250L
+                        && entry.getProductType() == ProductType.TOOL
+        ));
+    }
+
+    @Test
+    void purchase_shouldDebitCreditsAndAddMachineToInventory() {
+        progress.setCredits(2000L);
+        PurchaseRequest request = new PurchaseRequest(
+                ProductType.MACHINE, "basic_miner"
+        );
+        stubNewPurchase();
+
+        PurchaseResponse response = purchaseService.purchase(
+                userId, idempotencyKey, request
+        );
+
+        assertEquals(500L, response.balance().credits());
+        verify(inventoryMachineRepository).save(argThat(item ->
+                item.getUserId().equals(userId)
+                        && item.getMachineCode().equals("basic_miner")
+        ));
+        verify(ledgerRepository).save(argThat(entry ->
+                entry.getAmount() == -1500L
+                        && entry.getProductType() == ProductType.MACHINE
+        ));
+    }
+
     private void stubNewPurchase() {
         when(purchaseRepository.findByIdempotencyKey(idempotencyKey))
                 .thenReturn(Optional.empty());
