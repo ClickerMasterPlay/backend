@@ -3,6 +3,8 @@ package com.resourcemagnate.app.game;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.resourcemagnate.app.common.exception.BusinessException;
+import com.resourcemagnate.app.economy.EconomyService;
+import com.resourcemagnate.app.economy.model.LedgerOperationType;
 import com.resourcemagnate.app.game.dto.*;
 import com.resourcemagnate.app.game.model.BlockType;
 import com.resourcemagnate.app.game.model.CurrentBlock;
@@ -40,6 +42,7 @@ public class GameService {
     private final ProcessedClickBatchRepository batchRepository;
     private final ClickRateLimiter clickRateLimiter;
     private final ObjectMapper objectMapper;
+    private final EconomyService economyService;
 
     @Transactional
     public ClickBatchResponse processClickBatch(
@@ -147,20 +150,7 @@ public class GameService {
             throw new IllegalStateException("Negative block credit reward");
         }
 
-        long newCredits;
-        try {
-            newCredits = Math.addExact(
-                    progress.getCredits(),
-                    creditsReward
-            );
-        } catch (ArithmeticException e) {
-            throw new IllegalStateException("Credits balance overflow", e);
-        }
-
-        Map<String, Object> updatedResources = new HashMap<>();
-        if (progress.getResources() != null) {
-            updatedResources.putAll(progress.getResources());
-        }
+        economyService.creditCredits(progress, creditsReward);
 
         Map<String, Long> earnedResources = new HashMap<>();
 
@@ -175,27 +165,21 @@ public class GameService {
 
         if (resourceCode != null && !resourceCode.isBlank()
                 && resourceAmount > 0) {
-
-            long previousAmount = readResourceAmount(
-                    updatedResources.get(resourceCode)
-            );
-
-            long newAmount;
-            try {
-                newAmount = Math.addExact(previousAmount, resourceAmount);
-            } catch (ArithmeticException e) {
-                throw new IllegalStateException(
-                        "Resource balance overflow: " + resourceCode, e
-                );
-            }
-
-            updatedResources.put(resourceCode, newAmount);
+            economyService.addResource(progress, resourceCode, resourceAmount);
             earnedResources.put(resourceCode, (long) resourceAmount);
         }
 
-        progress.setCredits(newCredits);
-        progress.setResources(updatedResources);
         progressRepository.save(progress);
+
+        economyService.recordCurrencyOperation(
+                userId,
+                LedgerOperationType.CLICK_REWARD,
+                creditsReward,
+                null,
+                destroyedBlockType.getCode(),
+                null,
+                progress.getCredits()
+        );
 
         // Удаляем старый блок и сбрасываем изменения в БД,
         // прежде чем создавать новый с тем же user_id.

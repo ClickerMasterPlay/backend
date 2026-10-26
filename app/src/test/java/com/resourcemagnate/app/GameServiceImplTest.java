@@ -3,6 +3,7 @@ package com.resourcemagnate.app;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.resourcemagnate.app.common.exception.BusinessException;
+import com.resourcemagnate.app.economy.EconomyService;
 import com.resourcemagnate.app.game.ClickRateLimiter;
 import com.resourcemagnate.app.game.GameService;
 import com.resourcemagnate.app.game.dto.ClickBatchRequest;
@@ -60,6 +61,9 @@ class GameServiceImplTest {
 
     @Mock
     private ObjectMapper objectMapper;
+
+    @Mock
+    private EconomyService economyService;
 
     @InjectMocks
     private GameService gameService;
