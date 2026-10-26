@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.util.UUID;
 
 @Service
@@ -32,6 +33,7 @@ public class PurchaseService {
     private final ProductCatalogService catalogService;
     private final EconomyService economyService;
     private final ObjectMapper objectMapper;
+    private final Clock clock;
 
     @Transactional
     public PurchaseResponse purchase(
@@ -132,6 +134,7 @@ public class PurchaseService {
         InventoryMachine item = new InventoryMachine();
         item.setUserId(userId);
         item.setMachineCode(machineCode);
+        item.setLastCollectedAt(clock.instant());
         inventoryMachineRepository.save(item);
     }
 

@@ -9,6 +9,7 @@ public record ProductDefinition(
         Double clickPowerIncrease,
         Double toolMultiplier,
         Long productionPerHour,
+        String producedResource,
         String effect
 ) {
 }

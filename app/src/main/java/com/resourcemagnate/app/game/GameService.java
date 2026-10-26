@@ -45,6 +45,24 @@ public class GameService {
     private final EconomyService economyService;
 
     @Transactional
+    public BlockStateDto getCurrentBlock(UUID userId) {
+        if (userId == null) {
+            throw new BusinessException("VALIDATION_ERROR", "X-User-Id is required");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(
+                        "USER_NOT_FOUND", "User not found"
+                ));
+
+        CurrentBlock block = currentBlockRepository.findByUserId(userId)
+                .orElseGet(() -> currentBlockRepository.save(
+                        createCurrentBlock(user, getDefaultBlockType())
+                ));
+        return toBlockDto(block);
+    }
+
+    @Transactional
     public ClickBatchResponse processClickBatch(
             UUID userId,
             ClickBatchRequest request

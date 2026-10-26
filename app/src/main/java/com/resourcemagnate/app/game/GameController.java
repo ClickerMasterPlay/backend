@@ -17,6 +17,13 @@ public class GameController {
 
     private final GameService gameService;
 
+    @GetMapping("/current-block")
+    public ResponseEntity<com.resourcemagnate.app.game.dto.BlockStateDto> currentBlock(
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId
+    ) {
+        return ResponseEntity.ok(gameService.getCurrentBlock(userId));
+    }
+
     @PostMapping("/click-batch")
     public ResponseEntity<ClickBatchResponse> processClickBatch(
             @RequestHeader("X-User-Id") UUID userId,

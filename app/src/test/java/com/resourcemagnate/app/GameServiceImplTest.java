@@ -246,6 +246,36 @@ class GameServiceImplTest {
         );
     }
 
+    @Test
+    void getCurrentBlock_shouldReturnExistingBlock() {
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(currentBlockRepository.findByUserId(userId))
+                .thenReturn(Optional.of(currentBlock));
+
+        var response = gameService.getCurrentBlock(userId);
+
+        assertEquals("stone", response.type());
+        assertEquals(100, response.currentHp());
+        assertEquals(100, response.maxHp());
+        verify(currentBlockRepository, never()).save(any());
+    }
+
+    @Test
+    void getCurrentBlock_shouldCreateDefaultBlockWhenMissing() {
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(currentBlockRepository.findByUserId(userId)).thenReturn(Optional.empty());
+        when(blockTypeRepository.findByCode("stone"))
+                .thenReturn(Optional.of(blockType));
+        when(currentBlockRepository.save(any(CurrentBlock.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = gameService.getCurrentBlock(userId);
+
+        assertEquals("stone", response.type());
+        assertEquals(100, response.currentHp());
+        verify(currentBlockRepository).save(any(CurrentBlock.class));
+    }
+
     private void stubAcceptedClick(ClickBatchRequest request) {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(progressRepository.findByUserIdForUpdate(userId))

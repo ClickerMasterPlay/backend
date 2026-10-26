@@ -25,6 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.time.Clock;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -60,7 +61,8 @@ class PurchaseServiceTest {
                 progressRepository,
                 new ProductCatalogService(),
                 economyService,
-                objectMapper
+                objectMapper,
+                Clock.systemUTC()
         );
 
         userId = UUID.randomUUID();

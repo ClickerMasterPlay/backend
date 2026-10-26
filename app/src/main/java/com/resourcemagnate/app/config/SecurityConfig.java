@@ -32,7 +32,11 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/api/v1/game/**").permitAll()
                         // Temporary until real authentication replaces X-User-Id.
-                        .requestMatchers("/api/v1/shop/**", "/api/v1/economy/**").permitAll()
+                        .requestMatchers(
+                                "/api/v1/shop/**",
+                                "/api/v1/economy/**",
+                                "/api/v1/inventory/**"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .httpBasic(httpBasic -> httpBasic.disable())
