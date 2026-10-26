@@ -23,9 +23,30 @@ spring:
 
 logging:
   level:
+    root: INFO
+
+    # Твои классы: ошибки и ход выполнения приложения
+    com.resourcemagnate.app: DEBUG
+
+    # Входящие HTTP-запросы и обработка контроллеров
+    org.springframework.web: DEBUG
+    org.springframework.web.servlet.DispatcherServlet: DEBUG
+
+    # Spring Security: почему запрос разрешён или заблокирован
+    org.springframework.security: TRACE
+
+    # SQL-запросы Hibernate
     org.hibernate.SQL: DEBUG
+
+    # Значения параметров SQL (Hibernate 6)
     org.hibernate.orm.jdbc.bind: TRACE
+
+    # Flyway — выполнение миграций
     org.flywaydb: INFO
+
+server:
+  error:
+    include-message: always
 
 springdoc:
   api-docs:

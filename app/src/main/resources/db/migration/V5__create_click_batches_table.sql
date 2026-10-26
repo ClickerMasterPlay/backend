@@ -2,7 +2,7 @@ CREATE TABLE processed_click_batches (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id UUID NOT NULL,
     client_batch_id UUID NOT NULL,
-    clicks INTEGER NOT NULL;
+    clicks INTEGER NOT NULL,
     response_json JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -12,10 +12,10 @@ CREATE TABLE processed_click_batches (
     CONSTRAINT fk_click_batch_user
         FOREIGN KEY (user_id)
         REFERENCES users (id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
 
-    ADD CONSTRAINT chk_processed_click_batches_clicks
-        CHECK (clicks BETWEEN 1 AND 50);
+    CONSTRAINT chk_processed_click_batches_clicks
+        CHECK (clicks BETWEEN 1 AND 50)
 );
 
 CREATE INDEX idx_click_batches_created_at

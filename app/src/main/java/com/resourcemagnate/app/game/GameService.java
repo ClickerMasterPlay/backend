@@ -262,7 +262,7 @@ public class GameService {
     }
 
     private BlockType getDefaultBlockType() {
-        return blockTypeRepository.findById(DEFAULT_BLOCK_CODE)
+        return blockTypeRepository.findByCode(DEFAULT_BLOCK_CODE)
                 .orElseThrow(() -> new IllegalStateException(
                         "Default block type '" + DEFAULT_BLOCK_CODE
                                 + "' is not configured"
