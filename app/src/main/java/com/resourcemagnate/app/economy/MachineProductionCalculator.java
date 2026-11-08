@@ -6,6 +6,7 @@ import java.time.Instant;
 public final class MachineProductionCalculator {
 
     private static final long NANOS_PER_HOUR = Duration.ofHours(1).toNanos();
+    public static final Duration MAX_OFFLINE_WINDOW = Duration.ofHours(24);
 
     private MachineProductionCalculator() {
     }
@@ -25,16 +26,20 @@ public final class MachineProductionCalculator {
             return new Accrual(0, lastCollectedAt);
         }
 
+        Instant windowStart = now.minus(MAX_OFFLINE_WINDOW);
+        Instant effectiveStart = lastCollectedAt.isBefore(windowStart)
+                ? windowStart
+                : lastCollectedAt;
         long nanosPerUnit = NANOS_PER_HOUR / productionPerHour;
         long elapsedNanos;
         try {
-            elapsedNanos = Duration.between(lastCollectedAt, now).toNanos();
+            elapsedNanos = Duration.between(effectiveStart, now).toNanos();
         } catch (ArithmeticException ex) {
             throw new IllegalStateException("Machine collection interval is too large", ex);
         }
 
         long amount = elapsedNanos / nanosPerUnit;
-        Instant collectedThrough = lastCollectedAt.plusNanos(
+        Instant collectedThrough = effectiveStart.plusNanos(
                 Math.multiplyExact(amount, nanosPerUnit)
         );
         return new Accrual(amount, collectedThrough);

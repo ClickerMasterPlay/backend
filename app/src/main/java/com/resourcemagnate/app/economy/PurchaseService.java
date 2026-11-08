@@ -135,6 +135,8 @@ public class PurchaseService {
         item.setUserId(userId);
         item.setMachineCode(machineCode);
         item.setLastCollectedAt(clock.instant());
+        item.setInstalled(false);
+        item.setInstalledAt(null);
         inventoryMachineRepository.save(item);
     }
 

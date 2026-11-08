@@ -47,14 +47,16 @@ public class GlobalExceptionHandler {
                 request.getRequestURI(), ex.getMessage());
 
         HttpStatus status = switch (ex.getErrorCode()) {
-            case "USER_NOT_FOUND", "PROGRESS_NOT_FOUND", "PRODUCT_NOT_FOUND" ->
+            case "USER_NOT_FOUND", "PROGRESS_NOT_FOUND", "PRODUCT_NOT_FOUND",
+                    "MACHINE_NOT_OWNED" ->
                     HttpStatus.NOT_FOUND;
             case "RATE_LIMIT_EXCEEDED" ->
                     HttpStatus.TOO_MANY_REQUESTS;
             case "INVALID_BATCH_SIZE" ->
                     HttpStatus.BAD_REQUEST;
             case "INSUFFICIENT_FUNDS", "PRODUCT_ALREADY_OWNED",
-                    "IDEMPOTENCY_KEY_REUSED", "DUPLICATE_PURCHASE" ->
+                    "IDEMPOTENCY_KEY_REUSED", "DUPLICATE_PURCHASE",
+                    "MACHINE_ALREADY_INSTALLED", "MACHINE_NOT_INSTALLED" ->
                     HttpStatus.CONFLICT;
             default -> HttpStatus.BAD_REQUEST;
         };

@@ -56,14 +56,20 @@ public class InventoryService {
                     ProductDefinition product = catalogService.get(
                             ProductType.MACHINE, item.getMachineCode()
                     );
-                    long collectable = MachineProductionCalculator.calculate(
-                            item.getLastCollectedAt(), now, product.productionPerHour()
-                    ).amount();
+                    long collectable = item.isInstalled()
+                            ? MachineProductionCalculator.calculate(
+                                    item.getLastCollectedAt(),
+                                    now,
+                                    product.productionPerHour()
+                            ).amount()
+                            : 0L;
                     return new InventoryMachineResponse(
                             item.getMachineCode(),
                             product.producedResource(),
                             product.productionPerHour(),
                             collectable,
+                            item.isInstalled(),
+                            item.getInstalledAt(),
                             item.getAcquiredAt(),
                             item.getLastCollectedAt()
                     );

@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import jakarta.persistence.LockModeType;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface InventoryMachineRepository
@@ -21,4 +22,14 @@ public interface InventoryMachineRepository
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select m from InventoryMachine m where m.userId = :userId")
     List<InventoryMachine> findAllByUserIdForUpdate(@Param("userId") UUID userId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        select m from InventoryMachine m
+        where m.userId = :userId and m.machineCode = :machineCode
+        """)
+    Optional<InventoryMachine> findByUserIdAndMachineCodeForUpdate(
+            @Param("userId") UUID userId,
+            @Param("machineCode") String machineCode
+    );
 }

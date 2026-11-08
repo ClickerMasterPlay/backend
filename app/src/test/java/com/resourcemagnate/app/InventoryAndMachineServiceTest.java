@@ -5,6 +5,7 @@ import com.resourcemagnate.app.economy.catalog.ProductCatalogService;
 import com.resourcemagnate.app.economy.dto.BalanceResponse;
 import com.resourcemagnate.app.economy.dto.InventoryResponse;
 import com.resourcemagnate.app.economy.dto.MachineCollectionResponse;
+import com.resourcemagnate.app.economy.dto.MachineStateResponse;
 import com.resourcemagnate.app.economy.model.InventoryMachine;
 import com.resourcemagnate.app.economy.model.InventoryTool;
 import com.resourcemagnate.app.economy.repository.InventoryMachineRepository;
@@ -144,12 +145,67 @@ class InventoryAndMachineServiceTest {
         assertEquals(NOW, accrual.collectedThrough());
     }
 
+    @Test
+    void calculator_shouldCapOfflineProductionAtTwentyFourHours() {
+        var accrual = MachineProductionCalculator.calculate(
+                NOW.minusSeconds(72 * 3_600L), NOW, 10
+        );
+
+        assertEquals(240L, accrual.amount());
+        assertEquals(NOW, accrual.collectedThrough());
+    }
+
+    @Test
+    void install_shouldStartProductionFromCurrentTime() {
+        InventoryMachine machine = machine(NOW.minusSeconds(7_200));
+        machine.setInstalled(false);
+        machine.setInstalledAt(null);
+        when(userRepository.existsById(userId)).thenReturn(true);
+        when(machineRepository.findByUserIdAndMachineCodeForUpdate(
+                userId, "basic_miner"
+        )).thenReturn(Optional.of(machine));
+        when(progressRepository.findByUserId(userId)).thenReturn(Optional.of(progress));
+        when(machineRepository.saveAndFlush(machine)).thenReturn(machine);
+
+        MachineStateResponse response = collectionService.install(
+                userId, "basic_miner"
+        );
+
+        assertEquals(true, response.installed());
+        assertEquals(NOW, response.installedAt());
+        assertEquals(NOW, response.lastCollectedAt());
+        assertEquals(Map.of(), response.collectedResources());
+    }
+
+    @Test
+    void uninstall_shouldCollectAccruedResourcesAndStopMachine() {
+        InventoryMachine machine = machine(NOW.minusSeconds(7_200));
+        when(userRepository.existsById(userId)).thenReturn(true);
+        when(machineRepository.findByUserIdAndMachineCodeForUpdate(
+                userId, "basic_miner"
+        )).thenReturn(Optional.of(machine));
+        when(progressRepository.findByUserId(userId)).thenReturn(Optional.of(progress));
+        when(progressRepository.saveAndFlush(progress)).thenReturn(progress);
+        when(machineRepository.saveAndFlush(machine)).thenReturn(machine);
+
+        MachineStateResponse response = collectionService.uninstall(
+                userId, "basic_miner"
+        );
+
+        assertEquals(false, response.installed());
+        assertEquals(20L, response.collectedResources().get("stone"));
+        assertEquals(20L, response.balance().resources().get("stone"));
+        assertEquals(NOW, response.lastCollectedAt());
+    }
+
     private InventoryMachine machine(Instant lastCollectedAt) {
         InventoryMachine machine = new InventoryMachine();
         machine.setUserId(userId);
         machine.setMachineCode("basic_miner");
         machine.setAcquiredAt(lastCollectedAt);
         machine.setLastCollectedAt(lastCollectedAt);
+        machine.setInstalled(true);
+        machine.setInstalledAt(lastCollectedAt);
         return machine;
     }
 }

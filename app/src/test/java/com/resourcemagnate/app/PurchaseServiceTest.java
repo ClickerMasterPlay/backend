@@ -215,6 +215,8 @@ class PurchaseServiceTest {
         verify(inventoryMachineRepository).save(argThat(item ->
                 item.getUserId().equals(userId)
                         && item.getMachineCode().equals("basic_miner")
+                        && !item.isInstalled()
+                        && item.getInstalledAt() == null
         ));
         verify(ledgerRepository).save(argThat(entry ->
                 entry.getAmount() == -1500L

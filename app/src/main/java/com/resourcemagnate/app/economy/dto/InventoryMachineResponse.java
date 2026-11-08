@@ -7,6 +7,8 @@ public record InventoryMachineResponse(
         String resourceCode,
         long productionPerHour,
         long collectableAmount,
+        boolean installed,
+        Instant installedAt,
         Instant acquiredAt,
         Instant lastCollectedAt
 ) {

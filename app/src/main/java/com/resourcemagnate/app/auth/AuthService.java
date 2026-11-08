@@ -3,6 +3,10 @@ package com.resourcemagnate.app.auth;
 import com.resourcemagnate.app.auth.dto.AuthResponse;
 import com.resourcemagnate.app.auth.dto.RegisterRequest;
 import com.resourcemagnate.app.common.exception.BusinessException;
+import com.resourcemagnate.app.economy.EconomyService;
+import com.resourcemagnate.app.economy.MachineCollectionService;
+import com.resourcemagnate.app.economy.dto.MachineCollectionResponse;
+import com.resourcemagnate.app.economy.model.LedgerOperationType;
 import com.resourcemagnate.app.progress.PlayerProgress;
 import com.resourcemagnate.app.progress.PlayerProgressRepository;
 import com.resourcemagnate.app.user.User;
@@ -14,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 import java.util.UUID;
+import java.time.Clock;
+import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +28,9 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PlayerProgressRepository progressRepository;
     private final PasswordEncoder passwordEncoder;
+    private final MachineCollectionService machineCollectionService;
+    private final EconomyService economyService;
+    private final Clock clock;
 
     @Transactional
     public AuthResponse createGuest() {
@@ -48,6 +57,7 @@ public class AuthService {
                 .displayName(null)
                 .credits(0L)
                 .clickPower(1.0)
+                .offlineRewards(Map.of())
                 .build();
     }
 
@@ -79,6 +89,7 @@ public class AuthService {
                 .displayName(user.getDisplayName())
                 .credits(progress.getCredits())
                 .clickPower(progress.getClickPower())
+                .offlineRewards(Map.of())
                 .build();
     }
 
@@ -95,11 +106,28 @@ public class AuthService {
             throw new BusinessException("INVALID_CREDENTIALS", "Invalid email or password");
         }
 
-        user.setLastLoginAt(java.time.Instant.now());
+        Instant now = clock.instant();
+        user.setLastLoginAt(now);
         userRepository.save(user);
 
         PlayerProgress progress = progressRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new BusinessException("PROGRESS_NOT_FOUND", "Progress not found"));
+        progress.setLastSeenAt(now);
+
+        MachineCollectionResponse offlineCollection =
+                machineCollectionService.collect(user.getId());
+
+        if (!offlineCollection.collectedResources().isEmpty()) {
+            economyService.recordCurrencyOperation(
+                    user.getId(),
+                    LedgerOperationType.OFFLINE_REWARD,
+                    0L,
+                    null,
+                    null,
+                    null,
+                    progress.getCredits()
+            );
+        }
 
         return AuthResponse.builder()
                 .userId(user.getId())
@@ -107,6 +135,7 @@ public class AuthService {
                 .displayName(user.getDisplayName())
                 .credits(progress.getCredits())
                 .clickPower(progress.getClickPower())
+                .offlineRewards(offlineCollection.collectedResources())
                 .build();
     }
 
@@ -124,6 +153,7 @@ public class AuthService {
                 .displayName(user.getDisplayName())
                 .credits(progress.getCredits())
                 .clickPower(progress.getClickPower())
+                .offlineRewards(Map.of())
                 .build();
     }
 }

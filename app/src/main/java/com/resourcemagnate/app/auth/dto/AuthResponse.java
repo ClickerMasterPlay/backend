@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.UUID;
+import java.util.Map;
 
 @Data
 @Builder
@@ -17,4 +18,5 @@ public class AuthResponse {
     private String displayName;
     private Long credits;
     private Double clickPower;
+    private Map<String, Long> offlineRewards;
 }
