@@ -73,16 +73,16 @@ curl "http://localhost:8080/api/v1/leaderboard?top=100" \
 
 ### 2. Автодобыча → credits (машины дают валюту)
 **Было**: машины давали только ресурс (stone/iron/gold).
-**Стало**: у машин в каталоге появилось поле `creditsPerHour`:
-- `basic_miner` — 10 stone/час + **5 credits/час**
-- `advanced_miner` — 50 iron/час + **25 credits/час**
-- `elite_miner` — 200 gold/час + **100 credits/час**
+**Стало**: у машин в каталоге появилось поле `creditsPerHour` (в credits/час, соответствует фронту в credits/сек):
+- `basic_miner` — 10 stone/час + **36000 credits/час** (10/сек)
+- `advanced_miner` — 50 iron/час + **180000 credits/час** (50/сек)
+- `elite_miner` — 200 gold/час + **720000 credits/час** (200/сек)
 
 При коллекте (`POST /api/v1/inventory/machines/collect`) приходят и ресурсы, и credits:
 ```json
 {
-  "collected": {"stone": 10, "credits": 5},
-  "balance": {"credits": 115, "resources": {"stone": 15}},
+  "collected": {"stone": 10, "credits": 36000},
+  "balance": {"credits": 36115, "resources": {"stone": 15}},
   "collectedAt": "2026-11-09T15:00:00Z"
 }
 ```
@@ -99,8 +99,8 @@ curl "http://localhost:8080/api/v1/leaderboard?top=100" \
 | CLICK_UPGRADE | `click_power_2` | 500 | +1.0 click power |
 | CLICK_UPGRADE | `click_power_3` | 2000 | +2.0 click power |
 | TOOL | `gold_pickaxe` | 3000 | x3.0 click damage |
-| MACHINE | `advanced_miner` | 6000 | 50 iron + 25 credits/час |
-| MACHINE | `elite_miner` | 25000 | 200 gold + 100 credits/час |
+| MACHINE | `advanced_miner` | 6000 | 50 iron + 50 credits/сек |
+| MACHINE | `elite_miner` | 25000 | 200 gold + 200 credits/сек |
 
 Также в БД добавлен `gold_pickaxe` (миграция V13).
 
