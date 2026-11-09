@@ -58,7 +58,8 @@ public class GlobalExceptionHandler {
                     "IDEMPOTENCY_KEY_REUSED", "DUPLICATE_PURCHASE",
                     "MACHINE_ALREADY_INSTALLED", "MACHINE_NOT_INSTALLED",
                     "CHALLENGE_ALREADY_CLAIMED", "CHALLENGE_NOT_AVAILABLE",
-                    "CHALLENGE_NOT_COMPLETED", "PURCHASE_IN_PROGRESS" ->
+                    "CHALLENGE_NOT_COMPLETED", "PURCHASE_IN_PROGRESS",
+                    "DAILY_REWARD_ALREADY_CLAIMED" ->
                     HttpStatus.CONFLICT;
             default -> HttpStatus.BAD_REQUEST;
         };
