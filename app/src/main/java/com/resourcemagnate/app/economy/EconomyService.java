@@ -117,6 +117,27 @@ public class EconomyService {
         return ledgerRepository.save(entry);
     }
 
+    public LedgerEntry recordResourceOperation(
+            UUID userId,
+            LedgerOperationType operationType,
+            String resourceCode,
+            long resourceAmount,
+            long creditBalanceAfter
+    ) {
+        if (resourceCode == null || resourceCode.isBlank() || resourceAmount <= 0) {
+            throw new IllegalArgumentException("Valid resource reward is required");
+        }
+        LedgerEntry entry = new LedgerEntry();
+        entry.setId(UUID.randomUUID());
+        entry.setUserId(userId);
+        entry.setOperationType(operationType);
+        entry.setAmount(resourceAmount);
+        entry.setResourceCode(resourceCode);
+        entry.setResourceAmount(resourceAmount);
+        entry.setBalanceAfter(creditBalanceAfter);
+        return ledgerRepository.save(entry);
+    }
+
     public BalanceResponse toBalance(PlayerProgress progress) {
         Map<String, Long> resources = new HashMap<>();
         if (progress.getResources() != null) {

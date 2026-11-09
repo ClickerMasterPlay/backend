@@ -6,6 +6,7 @@ import com.resourcemagnate.app.economy.dto.BalanceResponse;
 import com.resourcemagnate.app.economy.dto.InventoryResponse;
 import com.resourcemagnate.app.economy.dto.MachineCollectionResponse;
 import com.resourcemagnate.app.economy.dto.MachineStateResponse;
+import com.resourcemagnate.app.economy.dto.ToolEquipmentResponse;
 import com.resourcemagnate.app.economy.model.InventoryMachine;
 import com.resourcemagnate.app.economy.model.InventoryTool;
 import com.resourcemagnate.app.economy.repository.InventoryMachineRepository;
@@ -55,7 +56,8 @@ class InventoryAndMachineServiceTest {
                 userRepository, progressRepository, ledgerRepository
         );
         inventoryService = new InventoryService(
-                userRepository, toolRepository, machineRepository, catalog, clock
+                userRepository, toolRepository, machineRepository, catalog,
+                progressRepository, clock
         );
         collectionService = new MachineCollectionService(
                 userRepository,
@@ -83,6 +85,7 @@ class InventoryAndMachineServiceTest {
 
         InventoryMachine machine = machine(NOW.minusSeconds(7_200));
         when(userRepository.existsById(userId)).thenReturn(true);
+        when(progressRepository.findByUserId(userId)).thenReturn(Optional.of(progress));
         when(toolRepository.findAllByUserIdOrderByAcquiredAtAsc(userId))
                 .thenReturn(List.of(tool));
         when(machineRepository.findAllByUserIdOrderByAcquiredAtAsc(userId))
@@ -93,11 +96,32 @@ class InventoryAndMachineServiceTest {
         assertEquals(1, response.tools().size());
         assertEquals("iron_pickaxe", response.tools().getFirst().toolCode());
         assertEquals(1.8, response.tools().getFirst().powerMultiplier());
+        assertEquals(false, response.tools().getFirst().equipped());
         assertEquals(1, response.machines().size());
         assertEquals("basic_miner", response.machines().getFirst().machineCode());
         assertEquals("stone", response.machines().getFirst().resourceCode());
         assertEquals(10L, response.machines().getFirst().productionPerHour());
         assertEquals(20L, response.machines().getFirst().collectableAmount());
+    }
+
+    @Test
+    void equipTool_shouldPersistOwnedToolAndReturnEffectivePower() {
+        progress.setClickPower(1.5);
+        when(userRepository.existsById(userId)).thenReturn(true);
+        when(toolRepository.existsByUserIdAndToolCode(userId, "iron_pickaxe"))
+                .thenReturn(true);
+        when(progressRepository.findByUserIdForUpdate(userId))
+                .thenReturn(Optional.of(progress));
+
+        ToolEquipmentResponse response = inventoryService.equipTool(
+                userId, "iron_pickaxe"
+        );
+
+        assertEquals("iron_pickaxe", progress.getEquippedToolCode());
+        assertEquals("iron_pickaxe", response.equippedToolCode());
+        assertEquals(1.8, response.toolMultiplier());
+        assertEquals(2.7, response.effectiveClickPower(), 1e-9);
+        verify(progressRepository).saveAndFlush(progress);
     }
 
     @Test

@@ -2,6 +2,9 @@
 
 Backend-приложение на Spring Boot с использованием PostgreSQL, Redis, Flyway и Swagger.
 
+Подробные правила игровой логики и интеграции фронтенда с API описаны в
+[`docs/GAMEPLAY_BACKEND_CONTRACT.md`](docs/GAMEPLAY_BACKEND_CONTRACT.md).
+
 ## Требования
 
 Перед запуском установи:
@@ -13,7 +16,7 @@ Backend-приложение на Spring Boot с использованием Po
 ## Технологии
 
 - Java 21
-- Spring Boot
+- Spring Boot 4.1.1
 - Spring Web MVC
 - Spring Data JPA / Hibernate
 - PostgreSQL 16
@@ -24,15 +27,10 @@ Backend-приложение на Spring Boot с использованием Po
 
 ## Запуск инфраструктуры
 
-В корне проекта выполни:
+Из корня репозитория перейди в каталог `app`, где находится `docker-compose.yml`:
 
 ```bash
-docker-compose up -d
-```
-
-Если используется современный Docker Compose, можно выполнить:
-
-```bash
+cd app
 docker compose up -d
 ```
 
@@ -135,9 +133,9 @@ docker compose up -d
 Конфигурационные файлы находятся в `src/main/resources/`:
 
 ```text
-application.yml
-application-local.yml
-application-dev.yml
+application.yaml
+application-local.yaml
+application-dev.yaml
 ```
 
 ## Swagger / OpenAPI
@@ -177,6 +175,24 @@ X-User-Id: <uuid>
 число заданий. После успешного `claim` сервер возвращает новый баланс и
 обновлённую тройку заданий. Награду нельзя получить повторно или забрать у
 задания, которое ещё не входит в доступную тройку.
+
+## API инструментов
+
+Купленный инструмент можно экипировать и снять:
+
+```http
+POST /api/v1/inventory/tools/{toolCode}/equip
+DELETE /api/v1/inventory/tools/equipped
+X-User-Id: <uuid>
+```
+
+`GET /api/v1/inventory` помечает активный инструмент полем `equipped`.
+Эффективная сила удара равна базовой силе клика, умноженной на коэффициент
+экипированного инструмента.
+
+Redis используется для распределённого rate limit. Если Redis временно
+недоступен, клики продолжают обрабатываться с локальным ограничителем внутри
+экземпляра приложения.
 
 ## Health-check
 
@@ -223,24 +239,15 @@ docker compose down -v
 
 Основной Java-код находится в пакете com.resourcemagnate.app
 
-com.resourcemagnate\
-├── ResourceMagnateApplication.java\
-├── config/\
-│   ├── RedisConfig.java\
-│   ├── OpenApiConfig.java\
-│   └── ...\
-├── common/\
-│   ├── exception/\
-│   │   ├── GlobalExceptionHandler.java\
-│   │   ├── ApiError.java\
-│   │   └── BusinessException.java\
-│   ├── dto/\
-│   └── util/\
-├── user/\
-├── economy/\
-├── game/\
-├── inventory/\
-└── ranking/
+com.resourcemagnate.app/
+├── auth/          — гостевые и зарегистрированные пользователи
+├── challenge/     — каталог, прогресс и награды заданий
+├── common/        — общий формат ошибок
+├── config/        — Security, Redis, OpenAPI, Clock
+├── economy/       — магазин, инвентарь, инструменты и машины
+├── game/          — блоки, клики, прогрессия и rate limit
+├── progress/      — агрегированный прогресс игрока
+└── user/          — пользовательская сущность и репозиторий
 
 | Пакет                   | Назначение|
 |-------------------------|---------------------------------------------------------------------------------|
@@ -248,13 +255,12 @@ com.resourcemagnate\
 | config/ | Конфигурация приложения: подключение Redis, настройка OpenAPI/Swagger и другие конфигурационные классы Spring. |
 |common/| Общие компоненты, используемые в разных модулях приложения.|
 |common/exception/| Обработка ошибок: глобальный обработчик исключений, единый формат API-ошибок и бизнес-исключения.|
-|common/dto/| Общие DTO (Data Transfer Objects) для передачи данных между компонентами и через API.|
-|common/util/| Вспомогательные классы и утилиты общего назначения.|
 |user/| Работа с пользователями: профили, управление пользовательскими данными и связанные бизнес-правила.|
-|economy/| Игровая экономика.|
-|game/| Основная игровая логика, игровые механики и управление игровыми процессами.|
-|inventory/| Инвентарь пользователя.|
-|ranking/| Рейтинги, таблицы лидеров.|
+|auth/| Создание гостя, регистрация и вход.|
+|challenge/| Серверный прогресс и получение наград за задания.|
+|economy/| Магазин, баланс, инвентарь, инструменты и машины.|
+|game/| Клики, блоки, редкости, награды и ограничение частоты запросов.|
+|progress/| Чтение текущего прогресса игрока.|
 
 
 

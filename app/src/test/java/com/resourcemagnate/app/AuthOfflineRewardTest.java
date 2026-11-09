@@ -82,13 +82,11 @@ class AuthOfflineRewardTest {
         assertEquals(Map.of("stone", 240L), response.getOfflineRewards());
         assertEquals(now, user.getLastLoginAt());
         assertEquals(now, progress.getLastSeenAt());
-        verify(economyService).recordCurrencyOperation(
+        verify(economyService).recordResourceOperation(
                 userId,
                 LedgerOperationType.OFFLINE_REWARD,
-                0L,
-                null,
-                null,
-                null,
+                "stone",
+                240L,
                 500L
         );
     }

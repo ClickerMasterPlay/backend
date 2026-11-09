@@ -3,6 +3,7 @@ package com.resourcemagnate.app.economy;
 import com.resourcemagnate.app.economy.dto.InventoryResponse;
 import com.resourcemagnate.app.economy.dto.MachineCollectionResponse;
 import com.resourcemagnate.app.economy.dto.MachineStateResponse;
+import com.resourcemagnate.app.economy.dto.ToolEquipmentResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +23,21 @@ public class InventoryController {
             @RequestHeader(value = "X-User-Id", required = false) UUID userId
     ) {
         return ResponseEntity.ok(inventoryService.getInventory(userId));
+    }
+
+    @PostMapping("/tools/{toolCode}/equip")
+    public ResponseEntity<ToolEquipmentResponse> equipTool(
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @PathVariable String toolCode
+    ) {
+        return ResponseEntity.ok(inventoryService.equipTool(userId, toolCode));
+    }
+
+    @DeleteMapping("/tools/equipped")
+    public ResponseEntity<ToolEquipmentResponse> unequipTool(
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId
+    ) {
+        return ResponseEntity.ok(inventoryService.unequipTool(userId));
     }
 
     @PostMapping("/machines/collect")

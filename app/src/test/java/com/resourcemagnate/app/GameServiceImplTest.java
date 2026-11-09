@@ -7,6 +7,7 @@ import com.resourcemagnate.app.common.exception.BusinessException;
 import com.resourcemagnate.app.economy.EconomyService;
 import com.resourcemagnate.app.economy.model.LedgerOperationType;
 import com.resourcemagnate.app.game.ClickRateLimiter;
+import com.resourcemagnate.app.game.BlockProgression;
 import com.resourcemagnate.app.game.GameService;
 import com.resourcemagnate.app.game.dto.ClickBatchRequest;
 import com.resourcemagnate.app.game.dto.ClickBatchResponse;
@@ -40,6 +41,15 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class GameServiceImplTest {
+
+    @Test
+    void blockProgression_shouldUnlockAllConfiguredRarities() {
+        assertEquals("stone", BlockProgression.typeCode(0));
+        assertEquals("iron", BlockProgression.typeCode(5));
+        assertEquals("gold", BlockProgression.typeCode(15));
+        assertEquals("diamond", BlockProgression.typeCode(30));
+        assertEquals("netherite", BlockProgression.typeCode(50));
+    }
 
     @Mock
     private UserRepository userRepository;
@@ -214,7 +224,7 @@ class GameServiceImplTest {
         ClickBatchRequest request = new ClickBatchRequest(batchId, 10);
 
         stubAcceptedClick(request);
-        when(blockTypeRepository.findByCode("stone"))
+        when(blockTypeRepository.findById("stone"))
                 .thenReturn(Optional.of(blockType));
         doAnswer(invocation -> {
             PlayerProgress target = invocation.getArgument(0);
@@ -270,7 +280,7 @@ class GameServiceImplTest {
     void getCurrentBlock_shouldCreateDefaultBlockWhenMissing() {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(currentBlockRepository.findByUserId(userId)).thenReturn(Optional.empty());
-        when(blockTypeRepository.findByCode("stone"))
+        when(blockTypeRepository.findById("stone"))
                 .thenReturn(Optional.of(blockType));
         when(currentBlockRepository.save(any(CurrentBlock.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));

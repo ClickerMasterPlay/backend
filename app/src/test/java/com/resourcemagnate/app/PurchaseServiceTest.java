@@ -82,7 +82,7 @@ class PurchaseServiceTest {
         PurchaseRequest request = new PurchaseRequest(
                 ProductType.CLICK_UPGRADE, "click_power_1"
         );
-        stubNewPurchase();
+        stubNewPurchase(request, 100L);
 
         PurchaseResponse response = purchaseService.purchase(
                 userId, idempotencyKey, request
@@ -114,6 +114,18 @@ class PurchaseServiceTest {
         when(purchaseRepository.findByIdempotencyKey(idempotencyKey))
                 .thenReturn(Optional.empty());
         when(userRepository.existsById(userId)).thenReturn(true);
+        when(purchaseRepository.reserve(
+                any(UUID.class), eq(userId), eq("TOOL"), eq("wooden_pickaxe"),
+                eq(250L), eq(idempotencyKey)
+        )).thenReturn(1);
+        when(purchaseRepository.findById(any(UUID.class)))
+                .thenAnswer(invocation -> Optional.of(
+                        reservedPurchase(
+                                invocation.getArgument(0),
+                                new PurchaseRequest(ProductType.TOOL, "wooden_pickaxe"),
+                                250L
+                        )
+                ));
         when(progressRepository.findByUserId(userId)).thenReturn(Optional.of(progress));
 
         BusinessException exception = assertThrows(
@@ -181,11 +193,37 @@ class PurchaseServiceTest {
     }
 
     @Test
+    void purchase_shouldReplayWinnerOfConcurrentIdempotencyReservation() {
+        PurchaseRequest request = new PurchaseRequest(
+                ProductType.CLICK_UPGRADE, "click_power_1"
+        );
+        PurchaseResponse original = new PurchaseResponse(
+                UUID.randomUUID(), ProductType.CLICK_UPGRADE, "click_power_1", 100L,
+                PurchaseStatus.COMPLETED,
+                new BalanceResponse(400L, Map.of()), 1.5
+        );
+        when(purchaseRepository.findByIdempotencyKey(idempotencyKey))
+                .thenReturn(Optional.empty(), Optional.of(savedPurchase(request, original)));
+        when(userRepository.existsById(userId)).thenReturn(true);
+        when(purchaseRepository.reserve(
+                any(UUID.class), eq(userId), eq("CLICK_UPGRADE"),
+                eq("click_power_1"), eq(100L), eq(idempotencyKey)
+        )).thenReturn(0);
+
+        PurchaseResponse replayed = purchaseService.purchase(
+                userId, idempotencyKey, request
+        );
+
+        assertEquals(original, replayed);
+        verifyNoInteractions(progressRepository, ledgerRepository, challengeService);
+    }
+
+    @Test
     void purchase_shouldDebitCreditsAndAddToolToInventory() {
         PurchaseRequest request = new PurchaseRequest(
                 ProductType.TOOL, "wooden_pickaxe"
         );
-        stubNewPurchase();
+        stubNewPurchase(request, 250L);
 
         PurchaseResponse response = purchaseService.purchase(
                 userId, idempotencyKey, request
@@ -209,7 +247,7 @@ class PurchaseServiceTest {
         PurchaseRequest request = new PurchaseRequest(
                 ProductType.MACHINE, "basic_miner"
         );
-        stubNewPurchase();
+        stubNewPurchase(request, 1500L);
 
         PurchaseResponse response = purchaseService.purchase(
                 userId, idempotencyKey, request
@@ -228,14 +266,41 @@ class PurchaseServiceTest {
         ));
     }
 
-    private void stubNewPurchase() {
+    private void stubNewPurchase(PurchaseRequest request, long price) {
         when(purchaseRepository.findByIdempotencyKey(idempotencyKey))
                 .thenReturn(Optional.empty());
         when(userRepository.existsById(userId)).thenReturn(true);
+        when(purchaseRepository.reserve(
+                any(UUID.class), eq(userId), anyString(), anyString(),
+                anyLong(), eq(idempotencyKey)
+        )).thenReturn(1);
+        when(purchaseRepository.findById(any(UUID.class)))
+                .thenAnswer(invocation -> Optional.of(reservedPurchase(
+                        invocation.getArgument(0),
+                        request,
+                        price
+                )));
         when(progressRepository.findByUserId(userId)).thenReturn(Optional.of(progress));
         when(progressRepository.saveAndFlush(progress)).thenReturn(progress);
         when(purchaseRepository.saveAndFlush(any(Purchase.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+    }
+
+    private Purchase reservedPurchase(
+            UUID id,
+            PurchaseRequest request,
+            long price
+    ) {
+        Purchase purchase = new Purchase();
+        purchase.setId(id);
+        purchase.setUserId(userId);
+        purchase.setProductType(request.productType());
+        purchase.setProductId(request.productId());
+        purchase.setPrice(price);
+        purchase.setStatus(PurchaseStatus.PROCESSING);
+        purchase.setIdempotencyKey(idempotencyKey);
+        purchase.setResponseJson(objectMapper.createObjectNode());
+        return purchase;
     }
 
     private Purchase savedPurchase(

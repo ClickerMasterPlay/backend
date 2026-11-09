@@ -58,6 +58,28 @@ public class PurchaseService {
             throw new BusinessException("USER_NOT_FOUND", "User not found");
         }
 
+        UUID purchaseId = UUID.randomUUID();
+        int reserved = purchaseRepository.reserve(
+                purchaseId,
+                userId,
+                product.type().name(),
+                product.id(),
+                product.price(),
+                idempotencyKey
+        );
+        if (reserved == 0) {
+            Purchase concurrent = purchaseRepository.findByIdempotencyKey(idempotencyKey)
+                    .orElseThrow(() -> new BusinessException(
+                            "PURCHASE_IN_PROGRESS", "Purchase is still being processed"
+                    ));
+            return replay(concurrent, userId, request);
+        }
+
+        Purchase purchase = purchaseRepository.findById(purchaseId)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Reserved purchase is not visible in the current transaction"
+                ));
+
         // Deliberately no pessimistic lock: @Version detects concurrent writes.
         PlayerProgress progress = progressRepository.findByUserId(userId)
                 .orElseThrow(() -> new BusinessException(
@@ -70,7 +92,6 @@ public class PurchaseService {
         // Force the version check inside this method rather than at transaction commit.
         progressRepository.saveAndFlush(progress);
 
-        UUID purchaseId = UUID.randomUUID();
         PurchaseResponse response = new PurchaseResponse(
                 purchaseId,
                 product.type(),
@@ -81,14 +102,7 @@ public class PurchaseService {
                 progress.getClickPower()
         );
 
-        Purchase purchase = new Purchase();
-        purchase.setId(purchaseId);
-        purchase.setUserId(userId);
-        purchase.setProductType(product.type());
-        purchase.setProductId(product.id());
-        purchase.setPrice(product.price());
         purchase.setStatus(PurchaseStatus.COMPLETED);
-        purchase.setIdempotencyKey(idempotencyKey);
         purchase.setResponseJson(objectMapper.valueToTree(response));
         purchaseRepository.saveAndFlush(purchase);
 
@@ -154,6 +168,11 @@ public class PurchaseService {
             throw new BusinessException(
                     "IDEMPOTENCY_KEY_REUSED",
                     "Idempotency-Key was already used for another purchase"
+            );
+        }
+        if (saved.getStatus() != PurchaseStatus.COMPLETED) {
+            throw new BusinessException(
+                    "PURCHASE_IN_PROGRESS", "Purchase is still being processed"
             );
         }
         try {

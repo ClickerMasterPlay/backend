@@ -117,17 +117,15 @@ public class AuthService {
         MachineCollectionResponse offlineCollection =
                 machineCollectionService.collect(user.getId());
 
-        if (!offlineCollection.collectedResources().isEmpty()) {
-            economyService.recordCurrencyOperation(
-                    user.getId(),
-                    LedgerOperationType.OFFLINE_REWARD,
-                    0L,
-                    null,
-                    null,
-                    null,
-                    progress.getCredits()
-            );
-        }
+        offlineCollection.collectedResources().forEach((resourceCode, amount) ->
+                economyService.recordResourceOperation(
+                        user.getId(),
+                        LedgerOperationType.OFFLINE_REWARD,
+                        resourceCode,
+                        amount,
+                        progress.getCredits()
+                )
+        );
 
         return AuthResponse.builder()
                 .userId(user.getId())
@@ -139,21 +137,4 @@ public class AuthService {
                 .build();
     }
 
-    @Transactional(readOnly = true)
-    public AuthResponse getProgress(UUID userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException("USER_NOT_FOUND", "User not found"));
-
-        PlayerProgress progress = progressRepository.findByUserId(userId)
-                .orElseThrow(() -> new BusinessException("PROGRESS_NOT_FOUND", "Progress not found"));
-
-        return AuthResponse.builder()
-                .userId(user.getId())
-                .isGuest(user.isGuest())
-                .displayName(user.getDisplayName())
-                .credits(progress.getCredits())
-                .clickPower(progress.getClickPower())
-                .offlineRewards(Map.of())
-                .build();
-    }
 }
