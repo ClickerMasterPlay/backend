@@ -2,6 +2,7 @@ package com.resourcemagnate.app.game;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.resourcemagnate.app.challenge.ChallengeService;
 import com.resourcemagnate.app.common.exception.BusinessException;
 import com.resourcemagnate.app.economy.EconomyService;
 import com.resourcemagnate.app.economy.model.LedgerOperationType;
@@ -43,6 +44,7 @@ public class GameService {
     private final ClickRateLimiter clickRateLimiter;
     private final ObjectMapper objectMapper;
     private final EconomyService economyService;
+    private final ChallengeService challengeService;
 
     @Transactional
     public BlockStateDto getCurrentBlock(UUID userId) {
@@ -155,6 +157,9 @@ public class GameService {
                     toBalanceDto(progress)
             );
 
+            challengeService.recordClickBatch(
+                    userId, request.clicks(), false, 0L
+            );
             saveProcessedBatch(userId, request, response);
             return response;
         }
@@ -218,6 +223,9 @@ public class GameService {
                 toBalanceDto(progress)
         );
 
+        challengeService.recordClickBatch(
+                userId, request.clicks(), true, creditsReward
+        );
         saveProcessedBatch(userId, request, response);
         return response;
     }

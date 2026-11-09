@@ -2,6 +2,7 @@ package com.resourcemagnate.app.economy;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.resourcemagnate.app.challenge.ChallengeService;
 import com.resourcemagnate.app.common.exception.BusinessException;
 import com.resourcemagnate.app.economy.catalog.ProductCatalogService;
 import com.resourcemagnate.app.economy.catalog.ProductDefinition;
@@ -34,6 +35,7 @@ public class PurchaseService {
     private final EconomyService economyService;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final ChallengeService challengeService;
 
     @Transactional
     public PurchaseResponse purchase(
@@ -99,6 +101,7 @@ public class PurchaseService {
                 purchaseId,
                 progress.getCredits()
         );
+        challengeService.recordPurchase(userId, product.price());
 
         return response;
     }

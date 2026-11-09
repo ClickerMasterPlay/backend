@@ -1,6 +1,7 @@
 package com.resourcemagnate.app;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.resourcemagnate.app.challenge.ChallengeService;
 import com.resourcemagnate.app.common.exception.BusinessException;
 import com.resourcemagnate.app.economy.EconomyService;
 import com.resourcemagnate.app.economy.PurchaseService;
@@ -40,6 +41,7 @@ class PurchaseServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private PlayerProgressRepository progressRepository;
     @Mock private LedgerRepository ledgerRepository;
+    @Mock private ChallengeService challengeService;
 
     private PurchaseService purchaseService;
     private ObjectMapper objectMapper;
@@ -62,7 +64,8 @@ class PurchaseServiceTest {
                 new ProductCatalogService(),
                 economyService,
                 objectMapper,
-                Clock.systemUTC()
+                Clock.systemUTC(),
+                challengeService
         );
 
         userId = UUID.randomUUID();
@@ -99,6 +102,7 @@ class PurchaseServiceTest {
                         && entry.getAmount() == -100L
                         && entry.getBalanceAfter() == 400L
         ));
+        verify(challengeService).recordPurchase(userId, 100L);
     }
 
     @Test

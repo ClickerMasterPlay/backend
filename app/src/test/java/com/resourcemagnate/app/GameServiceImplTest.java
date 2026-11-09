@@ -2,6 +2,7 @@ package com.resourcemagnate.app;
 
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.resourcemagnate.app.challenge.ChallengeService;
 import com.resourcemagnate.app.common.exception.BusinessException;
 import com.resourcemagnate.app.economy.EconomyService;
 import com.resourcemagnate.app.economy.model.LedgerOperationType;
@@ -66,6 +67,9 @@ class GameServiceImplTest {
 
     @Mock
     private EconomyService economyService;
+
+    @Mock
+    private ChallengeService challengeService;
 
     @InjectMocks
     private GameService gameService;
@@ -139,6 +143,7 @@ class GameServiceImplTest {
 
         verify(currentBlockRepository).save(currentBlock);
         verify(batchRepository).save(any(ProcessedClickBatch.class));
+        verify(challengeService).recordClickBatch(userId, 10, false, 0L);
 
         verify(progressRepository, never()).save(any(PlayerProgress.class));
         verify(currentBlockRepository, never()).delete(any(CurrentBlock.class));
@@ -235,6 +240,7 @@ class GameServiceImplTest {
         assertEquals(105L, response.balance().credits());
         assertEquals(2L, response.balance().resources().get("stone"));
         verify(progressRepository).save(progress);
+        verify(challengeService).recordClickBatch(userId, 10, true, 5L);
         verify(economyService).recordCurrencyOperation(
                 userId,
                 LedgerOperationType.CLICK_REWARD,

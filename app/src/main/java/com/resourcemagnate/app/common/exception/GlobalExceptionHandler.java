@@ -48,7 +48,7 @@ public class GlobalExceptionHandler {
 
         HttpStatus status = switch (ex.getErrorCode()) {
             case "USER_NOT_FOUND", "PROGRESS_NOT_FOUND", "PRODUCT_NOT_FOUND",
-                    "MACHINE_NOT_OWNED" ->
+                    "MACHINE_NOT_OWNED", "CHALLENGE_NOT_FOUND" ->
                     HttpStatus.NOT_FOUND;
             case "RATE_LIMIT_EXCEEDED" ->
                     HttpStatus.TOO_MANY_REQUESTS;
@@ -56,7 +56,9 @@ public class GlobalExceptionHandler {
                     HttpStatus.BAD_REQUEST;
             case "INSUFFICIENT_FUNDS", "PRODUCT_ALREADY_OWNED",
                     "IDEMPOTENCY_KEY_REUSED", "DUPLICATE_PURCHASE",
-                    "MACHINE_ALREADY_INSTALLED", "MACHINE_NOT_INSTALLED" ->
+                    "MACHINE_ALREADY_INSTALLED", "MACHINE_NOT_INSTALLED",
+                    "CHALLENGE_ALREADY_CLAIMED", "CHALLENGE_NOT_AVAILABLE",
+                    "CHALLENGE_NOT_COMPLETED" ->
                     HttpStatus.CONFLICT;
             default -> HttpStatus.BAD_REQUEST;
         };
