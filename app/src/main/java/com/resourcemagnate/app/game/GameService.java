@@ -2,6 +2,7 @@ package com.resourcemagnate.app.game;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.resourcemagnate.app.challenge.ChallengeService;
 import com.resourcemagnate.app.common.exception.BusinessException;
 import com.resourcemagnate.app.economy.EconomyService;
 import com.resourcemagnate.app.economy.model.LedgerOperationType;
@@ -32,7 +33,6 @@ public class GameService {
 
     private static final int MIN_CLICKS = 1;
     private static final int MAX_CLICKS = 50;
-    private static final String DEFAULT_BLOCK_CODE = "stone";
 
     private final UserRepository userRepository;
     private final PlayerProgressRepository progressRepository;
@@ -43,6 +43,30 @@ public class GameService {
     private final ClickRateLimiter clickRateLimiter;
     private final ObjectMapper objectMapper;
     private final EconomyService economyService;
+    private final ChallengeService challengeService;
+
+    @Transactional
+    public BlockStateDto getCurrentBlock(UUID userId) {
+        if (userId == null) {
+            throw new BusinessException("VALIDATION_ERROR", "X-User-Id is required");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(
+                        "USER_NOT_FOUND", "User not found"
+                ));
+
+        CurrentBlock block = currentBlockRepository.findByUserId(userId)
+                .orElseGet(() -> currentBlockRepository.save(
+                        createCurrentBlock(
+                                user,
+                                getBlockType(BlockProgression.typeCode(
+                                        challengeService.blocksBroken(userId)
+                                ))
+                        )
+                ));
+        return toBlockDto(block);
+    }
 
     @Transactional
     public ClickBatchResponse processClickBatch(
@@ -91,7 +115,12 @@ public class GameService {
 
         CurrentBlock currentBlock = currentBlockRepository
                 .findByUserIdForUpdate(userId)
-                .orElseGet(() -> createCurrentBlock(user, getDefaultBlockType()));
+                .orElseGet(() -> createCurrentBlock(
+                        user,
+                        getBlockType(BlockProgression.typeCode(
+                                challengeService.blocksBroken(userId)
+                        ))
+                ));
 
         double toolMultiplier = getToolMultiplier(
                 progress.getEquippedToolCode()
@@ -137,6 +166,9 @@ public class GameService {
                     toBalanceDto(progress)
             );
 
+            challengeService.recordClickBatch(
+                    userId, request.clicks(), false, 0L
+            );
             saveProcessedBatch(userId, request, response);
             return response;
         }
@@ -186,9 +218,12 @@ public class GameService {
         currentBlockRepository.delete(currentBlock);
         currentBlockRepository.flush();
 
-        CurrentBlock nextBlock = createCurrentBlock(
-                user, getDefaultBlockType()
+        long blocksBroken = challengeService.recordClickBatch(
+                userId, request.clicks(), true, creditsReward
         );
+        CurrentBlock nextBlock = createCurrentBlock(user, getBlockType(
+                BlockProgression.typeCode(blocksBroken)
+        ));
 
         currentBlockRepository.save(nextBlock);
         currentBlockRepository.flush();
@@ -245,11 +280,10 @@ public class GameService {
         return multiplier;
     }
 
-    private BlockType getDefaultBlockType() {
-        return blockTypeRepository.findByCode(DEFAULT_BLOCK_CODE)
+    private BlockType getBlockType(String code) {
+        return blockTypeRepository.findById(code)
                 .orElseThrow(() -> new IllegalStateException(
-                        "Default block type '" + DEFAULT_BLOCK_CODE
-                                + "' is not configured"
+                        "Block type '" + code + "' is not configured"
                 ));
     }
 

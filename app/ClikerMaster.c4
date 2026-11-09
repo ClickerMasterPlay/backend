@@ -113,10 +113,10 @@ model {
   }
 
   rmp = system 'Resource Magnate Platform' {
-    description 'Backend idle-игры: клики, экономика, рейтинг, прогресс'
+    description 'Backend idle-игры: клики, экономика, задания и прогресс'
 
     api = container 'API (Spring Boot)' {
-      technology 'Java 21 + Spring Boot 3'
+      technology 'Java 21 + Spring Boot 4.1.1'
       icon tech:spring
     }
 
@@ -154,7 +154,7 @@ model {
 
     player_progress = tableCore 'player_progress' {
       technology 'user_id PK/FK'
-      description 'credits, click_power,\nequipped_tool_id, last_seen_at,\nversion (optimistic lock)'
+      description 'credits, click_power, resources JSONB,\nequipped_tool_code, last_seen_at,\nversion (optimistic lock)'
     }
 
 

@@ -28,4 +28,13 @@ public class InventoryMachine {
     @CreationTimestamp
     @Column(name = "acquired_at", nullable = false, updatable = false)
     private Instant acquiredAt;
+
+    @Column(name = "last_collected_at", nullable = false)
+    private Instant lastCollectedAt;
+
+    @Column(name = "is_installed", nullable = false)
+    private boolean installed;
+
+    @Column(name = "installed_at")
+    private Instant installedAt;
 }

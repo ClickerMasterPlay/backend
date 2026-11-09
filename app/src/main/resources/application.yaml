@@ -15,6 +15,11 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
+app:
+  click-batches:
+    retention: P30D
+    cleanup-cron: "0 0 4 * * *"
+
 management:
   endpoints:
     web:

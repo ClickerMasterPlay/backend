@@ -13,6 +13,14 @@ import java.util.UUID;
 public interface CurrentBlockRepository
         extends JpaRepository<CurrentBlock, UUID> {
 
+    @Query("""
+        select cb
+        from CurrentBlock cb
+        join fetch cb.blockType
+        where cb.userId = :userId
+        """)
+    Optional<CurrentBlock> findByUserId(@Param("userId") UUID userId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
         select cb

@@ -39,6 +39,12 @@ public class LedgerEntry {
     @Column(name = "purchase_id")
     private UUID purchaseId;
 
+    @Column(name = "resource_code", length = 32)
+    private String resourceCode;
+
+    @Column(name = "resource_amount")
+    private Long resourceAmount;
+
     @Column(name = "balance_after", nullable = false)
     private Long balanceAfter;
 

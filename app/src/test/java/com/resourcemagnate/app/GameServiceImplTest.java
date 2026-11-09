@@ -2,10 +2,12 @@ package com.resourcemagnate.app;
 
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.resourcemagnate.app.challenge.ChallengeService;
 import com.resourcemagnate.app.common.exception.BusinessException;
 import com.resourcemagnate.app.economy.EconomyService;
 import com.resourcemagnate.app.economy.model.LedgerOperationType;
 import com.resourcemagnate.app.game.ClickRateLimiter;
+import com.resourcemagnate.app.game.BlockProgression;
 import com.resourcemagnate.app.game.GameService;
 import com.resourcemagnate.app.game.dto.ClickBatchRequest;
 import com.resourcemagnate.app.game.dto.ClickBatchResponse;
@@ -40,6 +42,15 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class GameServiceImplTest {
 
+    @Test
+    void blockProgression_shouldUnlockAllConfiguredRarities() {
+        assertEquals("stone", BlockProgression.typeCode(0));
+        assertEquals("iron", BlockProgression.typeCode(5));
+        assertEquals("gold", BlockProgression.typeCode(15));
+        assertEquals("diamond", BlockProgression.typeCode(30));
+        assertEquals("netherite", BlockProgression.typeCode(50));
+    }
+
     @Mock
     private UserRepository userRepository;
 
@@ -66,6 +77,9 @@ class GameServiceImplTest {
 
     @Mock
     private EconomyService economyService;
+
+    @Mock
+    private ChallengeService challengeService;
 
     @InjectMocks
     private GameService gameService;
@@ -139,6 +153,7 @@ class GameServiceImplTest {
 
         verify(currentBlockRepository).save(currentBlock);
         verify(batchRepository).save(any(ProcessedClickBatch.class));
+        verify(challengeService).recordClickBatch(userId, 10, false, 0L);
 
         verify(progressRepository, never()).save(any(PlayerProgress.class));
         verify(currentBlockRepository, never()).delete(any(CurrentBlock.class));
@@ -209,7 +224,7 @@ class GameServiceImplTest {
         ClickBatchRequest request = new ClickBatchRequest(batchId, 10);
 
         stubAcceptedClick(request);
-        when(blockTypeRepository.findByCode("stone"))
+        when(blockTypeRepository.findById("stone"))
                 .thenReturn(Optional.of(blockType));
         doAnswer(invocation -> {
             PlayerProgress target = invocation.getArgument(0);
@@ -235,6 +250,7 @@ class GameServiceImplTest {
         assertEquals(105L, response.balance().credits());
         assertEquals(2L, response.balance().resources().get("stone"));
         verify(progressRepository).save(progress);
+        verify(challengeService).recordClickBatch(userId, 10, true, 5L);
         verify(economyService).recordCurrencyOperation(
                 userId,
                 LedgerOperationType.CLICK_REWARD,
@@ -244,6 +260,36 @@ class GameServiceImplTest {
                 null,
                 105L
         );
+    }
+
+    @Test
+    void getCurrentBlock_shouldReturnExistingBlock() {
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(currentBlockRepository.findByUserId(userId))
+                .thenReturn(Optional.of(currentBlock));
+
+        var response = gameService.getCurrentBlock(userId);
+
+        assertEquals("stone", response.type());
+        assertEquals(100, response.currentHp());
+        assertEquals(100, response.maxHp());
+        verify(currentBlockRepository, never()).save(any());
+    }
+
+    @Test
+    void getCurrentBlock_shouldCreateDefaultBlockWhenMissing() {
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(currentBlockRepository.findByUserId(userId)).thenReturn(Optional.empty());
+        when(blockTypeRepository.findById("stone"))
+                .thenReturn(Optional.of(blockType));
+        when(currentBlockRepository.save(any(CurrentBlock.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = gameService.getCurrentBlock(userId);
+
+        assertEquals("stone", response.type());
+        assertEquals(100, response.currentHp());
+        verify(currentBlockRepository).save(any(CurrentBlock.class));
     }
 
     private void stubAcceptedClick(ClickBatchRequest request) {
