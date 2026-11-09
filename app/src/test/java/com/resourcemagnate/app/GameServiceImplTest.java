@@ -157,12 +157,13 @@ class GameServiceImplTest {
 
         assertFalse(response.destroyed());
         assertEquals(90, response.block().currentHp());
-        // Credits earned: 10 clicks * 1.0 clickPower = 10
-        assertEquals(110L, response.balance().credits());
+        // Credits earned: baseClickReward = 5/100 = 0.05, rewardPerClick = 0.05 * (1.0 + 0) = 0.05
+        // 10 clicks * 0.05 = 0.5 -> ceil = 1
+        assertEquals(101L, response.balance().credits());
 
         verify(currentBlockRepository).save(currentBlock);
         verify(batchRepository).save(any(ProcessedClickBatch.class));
-        verify(challengeService).recordClickBatch(userId, 10, false, 10L);
+        verify(challengeService).recordClickBatch(userId, 10, false, 1L);
 
         verify(progressRepository).save(progress);
         verify(currentBlockRepository, never()).delete(any(CurrentBlock.class));
@@ -220,9 +221,11 @@ class GameServiceImplTest {
         ClickBatchResponse response = gameService.processClickBatch(userId, request);
 
         assertFalse(response.destroyed());
+        // Damage: 10 * 1.0 * 1.8 = 18 -> ceil = 18, HP 100 - 18 = 82
         assertEquals(82, response.block().currentHp());
-        // Credits: 10 clicks * 1.0 clickPower = 10 (tool doesn't affect credits per click)
-        assertEquals(110L, response.balance().credits());
+        // Credits: baseClickReward = 5/100 = 0.05, rewardPerClick = 0.05 * (1.8 + 0) = 0.09
+        // 10 clicks * 0.09 = 0.9 -> ceil = 1
+        assertEquals(101L, response.balance().credits());
         verify(toolRepository).findById("iron_pickaxe");
     }
 
@@ -256,20 +259,24 @@ class GameServiceImplTest {
         ClickBatchResponse response = gameService.processClickBatch(userId, request);
 
         assertTrue(response.destroyed());
-        assertEquals(5L, response.rewards().credits());
+        // clickCredits: baseClickReward = 5/100 = 0.05, rewardPerClick = 0.05 * (1.0 + 0) = 0.05
+        // 10 clicks * 0.05 = 0.5 -> ceil = 1
+        // destroy reward = 5
+        // total = 6
+        assertEquals(6L, response.rewards().credits());
         assertEquals(2L, response.rewards().resources().get("stone"));
-        assertEquals(105L, response.balance().credits());
+        assertEquals(106L, response.balance().credits());
         assertEquals(2L, response.balance().resources().get("stone"));
         verify(progressRepository).save(progress);
-        verify(challengeService).recordClickBatch(userId, 10, true, 5L);
+        verify(challengeService).recordClickBatch(userId, 10, true, 6L);
         verify(economyService).recordCurrencyOperation(
                 userId,
                 LedgerOperationType.CLICK_REWARD,
-                5L,
+                6L,
                 null,
                 "stone",
                 null,
-                105L
+                106L
         );
     }
 
