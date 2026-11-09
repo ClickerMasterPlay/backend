@@ -155,13 +155,29 @@ public class GameService {
             );
         }
 
+        // Базовая награда за клик = reward_credits / max_hp (распределяем награду за уничтожение по кликам)
+        double baseClickReward = destroyedBlockType.getRewardCredits() == null
+                ? 0.0
+                : (double) destroyedBlockType.getRewardCredits() / destroyedBlockType.getMaxHp();
+
+        // Бонус от улучшений клика = clickPower - 1.0 (базовый clickPower = 1.0)
+        double clickPowerBonus = clickPower - 1.0;
+
+        // Формула награды за клик (как на фронте): baseClickReward * (toolMultiplier + clickPowerBonus)
+        double rewardPerClick = baseClickReward * (toolMultiplier + clickPowerBonus);
+
+        if (!Double.isFinite(rewardPerClick) || rewardPerClick < 0) {
+            rewardPerClick = 0.0;
+        }
+
+        // Награда за пачку кликов
+        long clickCredits = (long) Math.ceil(request.clicks() * rewardPerClick);
+
         if (damage < remainingHp) {
             currentBlock.setCurrentHp((int) (remainingHp - damage));
             currentBlockRepository.save(currentBlock);
 
-            // Начисляем credits за каждый клик (не только при destroy).
-            // Базовая формула: 1 credit за клик * clickPower.
-            long clickCredits = (long) Math.ceil(request.clicks() * clickPower);
+            // Начисляем credits за клики в этой пачке
             if (clickCredits > 0) {
                 economyService.creditCredits(progress, clickCredits);
                 progressRepository.save(progress);
@@ -191,7 +207,7 @@ public class GameService {
             return response;
         }
 
-        // Блок уничтожен: начисляем награды.
+        // Блок уничтожен: начисляем награду за клики ЭТОЙ пачки + награду за уничтожение блока
         long creditsReward = destroyedBlockType.getRewardCredits() == null
                 ? 0L
                 : destroyedBlockType.getRewardCredits();
@@ -200,7 +216,9 @@ public class GameService {
             throw new IllegalStateException("Negative block credit reward");
         }
 
-        economyService.creditCredits(progress, creditsReward);
+        long totalCredits = clickCredits + creditsReward;
+
+        economyService.creditCredits(progress, totalCredits);
 
         Map<String, Long> earnedResources = new HashMap<>();
 
@@ -224,7 +242,7 @@ public class GameService {
         economyService.recordCurrencyOperation(
                 userId,
                 LedgerOperationType.CLICK_REWARD,
-                creditsReward,
+                totalCredits,
                 null,
                 destroyedBlockType.getCode(),
                 null,
@@ -237,7 +255,7 @@ public class GameService {
         currentBlockRepository.flush();
 
         long blocksBroken = challengeService.recordClickBatch(
-                userId, request.clicks(), true, creditsReward
+                userId, request.clicks(), true, totalCredits
         );
         CurrentBlock nextBlock = createCurrentBlock(user, getBlockType(
                 BlockProgression.typeCode(blocksBroken)
@@ -249,7 +267,7 @@ public class GameService {
         ClickBatchResponse response = new ClickBatchResponse(
                 true,
                 toBlockDto(nextBlock),
-                new RewardsDto(creditsReward, Map.copyOf(earnedResources)),
+                new RewardsDto(totalCredits, Map.copyOf(earnedResources)),
                 toBalanceDto(progress)
         );
 
