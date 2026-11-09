@@ -109,8 +109,8 @@ class GameServiceImplTest {
         blockType = new BlockType();
         blockType.setCode("stone");
         blockType.setRarity(BlockRarity.COMMON);
-        blockType.setMaxHp(100);
-        blockType.setRewardCredits(5L);
+        blockType.setMaxHp(10);
+        blockType.setRewardCredits(10L); // base = 1.0
         blockType.setRewardResource(null);
         blockType.setRewardAmount(0);
 
@@ -118,13 +118,13 @@ class GameServiceImplTest {
         currentBlock.setUserId(userId);
         currentBlock.setUser(user);
         currentBlock.setBlockType(blockType);
-        currentBlock.setCurrentHp(100);
-        currentBlock.setMaxHp(100);
+        currentBlock.setCurrentHp(10);
+        currentBlock.setMaxHp(10);
     }
 
     @Test
     void processClickBatch_shouldDamageBlockAndSaveResponse() {
-        ClickBatchRequest request = new ClickBatchRequest(batchId, 10);
+        ClickBatchRequest request = new ClickBatchRequest(batchId, 5);
 
         when(userRepository.findById(userId))
                 .thenReturn(Optional.of(user));
@@ -140,7 +140,7 @@ class GameServiceImplTest {
         when(currentBlockRepository.findByUserIdForUpdate(userId))
                 .thenReturn(Optional.of(currentBlock));
 
-        // 10 кликов * 1.0 силы = 10 урона.
+        // 5 кликов * 1.0 силы = 5 урона.
         when(objectMapper.valueToTree(any(ClickBatchResponse.class)))
                 .thenReturn(new ObjectMapper().createObjectNode());
 
@@ -156,14 +156,14 @@ class GameServiceImplTest {
                 gameService.processClickBatch(userId, request);
 
         assertFalse(response.destroyed());
-        assertEquals(90, response.block().currentHp());
-        // Credits earned: baseClickReward = 5/100 = 0.05, rewardPerClick = 0.05 * (1.0 + 0) = 0.05
-        // 10 clicks * 0.05 = 0.5 -> ceil = 1
-        assertEquals(101L, response.balance().credits());
+        assertEquals(5, response.block().currentHp());
+        // Credits earned: base=1.0, clickPower=1.0, tool=1.0 -> 1.0 per click
+        // 5 clicks * 1.0 = 5
+        assertEquals(105L, response.balance().credits());
 
         verify(currentBlockRepository).save(currentBlock);
         verify(batchRepository).save(any(ProcessedClickBatch.class));
-        verify(challengeService).recordClickBatch(userId, 10, false, 1L);
+        verify(challengeService).recordClickBatch(userId, 5, false, 5L);
 
         verify(progressRepository).save(progress);
         verify(currentBlockRepository, never()).delete(any(CurrentBlock.class));
@@ -212,7 +212,7 @@ class GameServiceImplTest {
         Tool tool = new Tool();
         tool.setCode("iron_pickaxe");
         tool.setPowerMultiplier(1.8);
-        ClickBatchRequest request = new ClickBatchRequest(batchId, 10);
+        ClickBatchRequest request = new ClickBatchRequest(batchId, 5);
 
         stubAcceptedClick(request);
         when(toolRepository.findById("iron_pickaxe"))
@@ -221,18 +221,18 @@ class GameServiceImplTest {
         ClickBatchResponse response = gameService.processClickBatch(userId, request);
 
         assertFalse(response.destroyed());
-        // Damage: 10 * 1.0 * 1.8 = 18 -> ceil = 18, HP 100 - 18 = 82
-        assertEquals(82, response.block().currentHp());
-        // Credits: baseClickReward = 5/100 = 0.05, rewardPerClick = 0.05 * (1.8 + 0) = 0.09
-        // 10 clicks * 0.09 = 0.9 -> ceil = 1
-        assertEquals(101L, response.balance().credits());
+        // Damage: 5 * 1.0 * 1.8 = 9 -> ceil = 9, HP 10 - 9 = 1
+        assertEquals(1, response.block().currentHp());
+        // Credits: base=1.0, clickPower=1.0, tool=1.8 -> 1.8 per click
+        // 5 clicks * 1.8 = 9
+        assertEquals(109L, response.balance().credits());
         verify(toolRepository).findById("iron_pickaxe");
     }
 
     @Test
     void processClickBatch_shouldRewardDestroyedBlockAndWriteLedger() {
         currentBlock.setCurrentHp(10);
-        blockType.setRewardCredits(5L);
+        blockType.setRewardCredits(10L); // base = 1.0
         blockType.setRewardResource("stone");
         blockType.setRewardAmount(2);
         ClickBatchRequest request = new ClickBatchRequest(batchId, 10);
@@ -259,24 +259,24 @@ class GameServiceImplTest {
         ClickBatchResponse response = gameService.processClickBatch(userId, request);
 
         assertTrue(response.destroyed());
-        // clickCredits: baseClickReward = 5/100 = 0.05, rewardPerClick = 0.05 * (1.0 + 0) = 0.05
-        // 10 clicks * 0.05 = 0.5 -> ceil = 1
-        // destroy reward = 5
-        // total = 6
-        assertEquals(6L, response.rewards().credits());
+        // clickCredits: base=1.0, clickPower=1.0, tool=1.0 -> 1.0 per click
+        // 10 clicks * 1.0 = 10
+        // destroy reward = 10
+        // total = 20
+        assertEquals(20L, response.rewards().credits());
         assertEquals(2L, response.rewards().resources().get("stone"));
-        assertEquals(106L, response.balance().credits());
+        assertEquals(120L, response.balance().credits());
         assertEquals(2L, response.balance().resources().get("stone"));
         verify(progressRepository).save(progress);
-        verify(challengeService).recordClickBatch(userId, 10, true, 6L);
+        verify(challengeService).recordClickBatch(userId, 10, true, 20L);
         verify(economyService).recordCurrencyOperation(
                 userId,
                 LedgerOperationType.CLICK_REWARD,
-                6L,
+                20L,
                 null,
                 "stone",
                 null,
-                106L
+                120L
         );
     }
 
@@ -289,12 +289,12 @@ class GameServiceImplTest {
         var response = gameService.getCurrentBlock(userId);
 
         assertEquals("stone", response.type());
-        assertEquals(100, response.currentHp());
-        assertEquals(100, response.maxHp());
+        assertEquals(10, response.currentHp());
+        assertEquals(10, response.maxHp());
         verify(currentBlockRepository, never()).save(any());
     }
 
-    @Test
+@Test
     void getCurrentBlock_shouldCreateDefaultBlockWhenMissing() {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(currentBlockRepository.findByUserId(userId)).thenReturn(Optional.empty());
@@ -306,7 +306,8 @@ class GameServiceImplTest {
         var response = gameService.getCurrentBlock(userId);
 
         assertEquals("stone", response.type());
-        assertEquals(100, response.currentHp());
+        assertEquals(10, response.currentHp());
+        assertEquals(10, response.maxHp());
         verify(currentBlockRepository).save(any(CurrentBlock.class));
     }
 
