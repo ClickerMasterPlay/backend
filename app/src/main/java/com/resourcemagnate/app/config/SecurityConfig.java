@@ -27,6 +27,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/progress/**").permitAll()
+                        .requestMatchers("/api/v1/leaderboard/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/webjars/**").permitAll()
                         .requestMatchers("/api/v1/game/**").permitAll()
@@ -35,7 +36,8 @@ public class SecurityConfig {
                                 "/api/v1/shop/**",
                                 "/api/v1/economy/**",
                                 "/api/v1/inventory/**",
-                                "/api/v1/challenges/**"
+                                "/api/v1/challenges/**",
+                                "/api/v1/daily-rewards/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

@@ -121,13 +121,8 @@ public class ChallengeService {
                     "CHALLENGE_ALREADY_CLAIMED", "Challenge reward was already claimed"
             );
         }
-        if (visibleDefinitions(claimed).stream()
-                .noneMatch(item -> item.index() == challengeIndex)) {
-            throw new BusinessException(
-                    "CHALLENGE_NOT_AVAILABLE", "Challenge is not available yet"
-            );
-        }
-
+        // Allow claiming ANY completed challenge, not just visible ones.
+        // Visibility window is for UI only.
         double power = currentPower(player);
         if (!ready(progress, definition, power)) {
             throw new BusinessException(

@@ -5,5 +5,6 @@ public enum LedgerOperationType {
     CLICK_REWARD,
     OFFLINE_REWARD,
     CHALLENGE_REWARD,
+    DAILY_REWARD,
     DEPOSIT
 }

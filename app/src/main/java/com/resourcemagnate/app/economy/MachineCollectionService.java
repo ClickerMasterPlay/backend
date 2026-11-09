@@ -130,6 +130,7 @@ public class MachineCollectionService {
             return;
         }
 
+        // Collect resources (stone, etc.)
         economyService.addResource(
                 progress, product.producedResource(), accrual.amount()
         );
@@ -138,6 +139,20 @@ public class MachineCollectionService {
                 accrual.amount(),
                 Math::addExact
         );
+
+        // Collect credits if configured
+        if (product.creditsPerHour() != null && product.creditsPerHour() > 0) {
+            long creditsAccrued = MachineProductionCalculator.calculate(
+                    machine.getLastCollectedAt(),
+                    now,
+                    product.creditsPerHour()
+            ).amount();
+            if (creditsAccrued > 0) {
+                economyService.creditCredits(progress, creditsAccrued);
+                collected.merge("credits", creditsAccrued, Math::addExact);
+            }
+        }
+
         machine.setLastCollectedAt(accrual.collectedThrough());
     }
 

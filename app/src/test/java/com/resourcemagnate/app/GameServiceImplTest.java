@@ -144,18 +144,27 @@ class GameServiceImplTest {
         when(objectMapper.valueToTree(any(ClickBatchResponse.class)))
                 .thenReturn(new ObjectMapper().createObjectNode());
 
+        // Mock economyService to add credits
+        doAnswer(invocation -> {
+            PlayerProgress target = invocation.getArgument(0);
+            long amount = invocation.getArgument(1);
+            target.setCredits(target.getCredits() + amount);
+            return null;
+        }).when(economyService).creditCredits(any(PlayerProgress.class), anyLong());
+
         ClickBatchResponse response =
                 gameService.processClickBatch(userId, request);
 
         assertFalse(response.destroyed());
         assertEquals(90, response.block().currentHp());
-        assertEquals(100L, response.balance().credits());
+        // Credits earned: 10 clicks * 1.0 clickPower = 10
+        assertEquals(110L, response.balance().credits());
 
         verify(currentBlockRepository).save(currentBlock);
         verify(batchRepository).save(any(ProcessedClickBatch.class));
-        verify(challengeService).recordClickBatch(userId, 10, false, 0L);
+        verify(challengeService).recordClickBatch(userId, 10, false, 10L);
 
-        verify(progressRepository, never()).save(any(PlayerProgress.class));
+        verify(progressRepository).save(progress);
         verify(currentBlockRepository, never()).delete(any(CurrentBlock.class));
     }
 
@@ -212,6 +221,8 @@ class GameServiceImplTest {
 
         assertFalse(response.destroyed());
         assertEquals(82, response.block().currentHp());
+        // Credits: 10 clicks * 1.0 clickPower = 10 (tool doesn't affect credits per click)
+        assertEquals(110L, response.balance().credits());
         verify(toolRepository).findById("iron_pickaxe");
     }
 
@@ -302,7 +313,14 @@ class GameServiceImplTest {
         when(clickRateLimiter.allow(userId)).thenReturn(true);
         when(currentBlockRepository.findByUserIdForUpdate(userId))
                 .thenReturn(Optional.of(currentBlock));
-        when(objectMapper.valueToTree(any(ClickBatchResponse.class)))
+        lenient().when(objectMapper.valueToTree(any(ClickBatchResponse.class)))
                 .thenReturn(new ObjectMapper().createObjectNode());
+        // Mock economyService to actually add credits - use lenient to allow override in tests
+        lenient().doAnswer(invocation -> {
+            PlayerProgress target = invocation.getArgument(0);
+            long amount = invocation.getArgument(1);
+            target.setCredits(target.getCredits() + amount);
+            return null;
+        }).when(economyService).creditCredits(any(PlayerProgress.class), anyLong());
     }
 }
