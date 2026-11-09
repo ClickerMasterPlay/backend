@@ -43,15 +43,15 @@ public ProductCatalogService() {
         ));
         add(definitions, new ProductDefinition(
                 ProductType.MACHINE, "basic_miner", 1500,
-                null, null, 10L, "stone", 5L, "10 stone + 5 credits per hour"
+                null, null, 10L, "stone", 36000L, "10 stone + 10 credits per second"
         ));
         add(definitions, new ProductDefinition(
                 ProductType.MACHINE, "advanced_miner", 6000,
-                null, null, 50L, "iron", 25L, "50 iron + 25 credits per hour"
+                null, null, 50L, "iron", 180000L, "50 iron + 50 credits per second"
         ));
         add(definitions, new ProductDefinition(
                 ProductType.MACHINE, "elite_miner", 25000,
-                null, null, 200L, "gold", 100L, "200 gold + 100 credits per hour"
+                null, null, 200L, "gold", 720000L, "200 gold + 200 credits per second"
         ));
         products = Map.copyOf(definitions);
     }
