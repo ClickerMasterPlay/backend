@@ -160,11 +160,8 @@ public class GameService {
                 ? 0.0
                 : (double) destroyedBlockType.getRewardCredits() / destroyedBlockType.getMaxHp();
 
-        // Бонус от улучшений клика = clickPower - 1.0 (базовый clickPower = 1.0)
-        double clickPowerBonus = clickPower - 1.0;
-
-        // Формула награды за клик (как на фронте): baseClickReward * (toolMultiplier + clickPowerBonus)
-        double rewardPerClick = baseClickReward * (toolMultiplier + clickPowerBonus);
+        // Формула награды за клик: baseClickReward * clickPower * toolMultiplier
+        double rewardPerClick = baseClickReward * clickPower * toolMultiplier;
 
         if (!Double.isFinite(rewardPerClick) || rewardPerClick < 0) {
             rewardPerClick = 0.0;
