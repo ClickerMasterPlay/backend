@@ -15,23 +15,43 @@ public class ProductCatalogService {
 
     private final Map<String, ProductDefinition> products;
 
-    public ProductCatalogService() {
+public ProductCatalogService() {
         Map<String, ProductDefinition> definitions = new LinkedHashMap<>();
         add(definitions, new ProductDefinition(
                 ProductType.CLICK_UPGRADE, "click_power_1", 100,
-                0.5, null, null, null, "+0.5 click power"
+                0.5, null, null, null, null, "+0.5 click power"
+        ));
+        add(definitions, new ProductDefinition(
+                ProductType.CLICK_UPGRADE, "click_power_2", 500,
+                1.0, null, null, null, null, "+1.0 click power"
+        ));
+        add(definitions, new ProductDefinition(
+                ProductType.CLICK_UPGRADE, "click_power_3", 2000,
+                2.0, null, null, null, null, "+2.0 click power"
         ));
         add(definitions, new ProductDefinition(
                 ProductType.TOOL, "wooden_pickaxe", 250,
-                null, 1.2, null, null, "x1.2 click damage"
+                null, 1.2, null, null, null, "x1.2 click damage"
         ));
         add(definitions, new ProductDefinition(
                 ProductType.TOOL, "iron_pickaxe", 800,
-                null, 1.8, null, null, "x1.8 click damage"
+                null, 1.8, null, null, null, "x1.8 click damage"
+        ));
+        add(definitions, new ProductDefinition(
+                ProductType.TOOL, "gold_pickaxe", 3000,
+                null, 3.0, null, null, null, "x3.0 click damage"
         ));
         add(definitions, new ProductDefinition(
                 ProductType.MACHINE, "basic_miner", 1500,
-                null, null, 10L, "stone", "10 stone per hour"
+                null, null, 10L, "stone", 5L, "10 stone + 5 credits per hour"
+        ));
+        add(definitions, new ProductDefinition(
+                ProductType.MACHINE, "advanced_miner", 6000,
+                null, null, 50L, "iron", 25L, "50 iron + 25 credits per hour"
+        ));
+        add(definitions, new ProductDefinition(
+                ProductType.MACHINE, "elite_miner", 25000,
+                null, null, 200L, "gold", 100L, "200 gold + 100 credits per hour"
         ));
         products = Map.copyOf(definitions);
     }

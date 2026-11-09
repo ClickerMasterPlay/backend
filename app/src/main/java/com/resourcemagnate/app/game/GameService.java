@@ -159,15 +159,33 @@ public class GameService {
             currentBlock.setCurrentHp((int) (remainingHp - damage));
             currentBlockRepository.save(currentBlock);
 
+            // Начисляем credits за каждый клик (не только при destroy).
+            // Базовая формула: 1 credit за клик * clickPower.
+            long clickCredits = (long) Math.ceil(request.clicks() * clickPower);
+            if (clickCredits > 0) {
+                economyService.creditCredits(progress, clickCredits);
+                progressRepository.save(progress);
+                
+                economyService.recordCurrencyOperation(
+                        userId,
+                        LedgerOperationType.CLICK_REWARD,
+                        clickCredits,
+                        null,
+                        destroyedBlockType.getCode(),
+                        null,
+                        progress.getCredits()
+                );
+            }
+
             ClickBatchResponse response = new ClickBatchResponse(
                     false,
                     toBlockDto(currentBlock),
-                    new RewardsDto(0L, Map.of()),
+                    new RewardsDto(clickCredits, Map.of()),
                     toBalanceDto(progress)
             );
 
             challengeService.recordClickBatch(
-                    userId, request.clicks(), false, 0L
+                    userId, request.clicks(), false, clickCredits
             );
             saveProcessedBatch(userId, request, response);
             return response;
