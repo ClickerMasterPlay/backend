@@ -12,6 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -27,7 +28,7 @@ class PurchasePersistenceIntegrationTest {
     void nativeReservation_shouldCompleteAndReplayTheSamePurchase() {
         UUID userId = authService.createGuest().getUserId();
         var progress = progressRepository.findByUserId(userId).orElseThrow();
-        progress.setCredits(500L);
+        progress.setResources(Map.of("stone", 500L));
         progressRepository.saveAndFlush(progress);
 
         UUID key = UUID.randomUUID();
@@ -40,6 +41,7 @@ class PurchasePersistenceIntegrationTest {
 
         assertEquals(PurchaseStatus.COMPLETED, first.status());
         assertEquals(first, replay);
-        assertEquals(400L, first.balance().credits());
+        assertEquals(0L, first.balance().credits());
+        assertEquals(400L, first.balance().resources().get("stone"));
     }
 }

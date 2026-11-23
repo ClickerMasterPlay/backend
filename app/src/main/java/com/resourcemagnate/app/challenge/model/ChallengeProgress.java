@@ -33,8 +33,8 @@ public class ChallengeProgress {
     @Column(name = "credits_earned", nullable = false)
     private long creditsEarned;
 
-    @Column(name = "credits_spent", nullable = false)
-    private long creditsSpent;
+    @Column(name = "stone_spent", nullable = false)
+    private long stoneSpent;
 
     @Column(name = "purchases_count", nullable = false)
     private long purchasesCount;

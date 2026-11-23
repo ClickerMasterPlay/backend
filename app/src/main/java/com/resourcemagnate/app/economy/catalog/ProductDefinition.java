@@ -6,7 +6,6 @@ public record ProductDefinition(
         ProductType type,
         String id,
         long price,
-        String priceResourceCode,
         Double clickPowerIncrease,
         Double toolMultiplier,
         Long productionPerHour,

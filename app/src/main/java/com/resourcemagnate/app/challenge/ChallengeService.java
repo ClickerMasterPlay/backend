@@ -90,12 +90,14 @@ public class ChallengeService {
      * Records a completed, non-replayed purchase.
      */
     @Transactional
-    public void recordPurchase(UUID userId, long price) {
-        if (price < 0) {
+    public void recordPurchase(UUID userId, long stoneAmount) {
+        if (stoneAmount < 0) {
             throw new IllegalArgumentException("Purchase price must not be negative");
         }
         ChallengeProgress progress = getOrCreateForUpdate(userId);
-        progress.setCreditsSpent(add(progress.getCreditsSpent(), price, "credits spent"));
+        progress.setStoneSpent(add(
+                progress.getStoneSpent(), stoneAmount, "stone spent"
+        ));
         progress.setPurchasesCount(add(progress.getPurchasesCount(), 1, "purchases"));
         challengeProgressRepository.save(progress);
     }
@@ -210,7 +212,7 @@ public class ChallengeService {
                 progress.getTotalClicks(),
                 progress.getBlocksBroken(),
                 progress.getCreditsEarned(),
-                progress.getCreditsSpent(),
+                progress.getStoneSpent(),
                 progress.getPurchasesCount(),
                 level(progress.getBlocksBroken()),
                 power
@@ -234,7 +236,7 @@ public class ChallengeService {
             case CLICKS -> progress.getTotalClicks();
             case BREAK -> progress.getBlocksBroken();
             case EARN -> progress.getCreditsEarned();
-            case SPEND -> progress.getCreditsSpent();
+            case SPEND -> progress.getStoneSpent();
             case LEVEL -> level(progress.getBlocksBroken());
             case BUY -> progress.getPurchasesCount();
             case POWER -> power;
