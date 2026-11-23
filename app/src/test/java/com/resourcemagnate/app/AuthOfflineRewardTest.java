@@ -51,7 +51,7 @@ class AuthOfflineRewardTest {
         progress.setUserId(userId);
         progress.setCredits(500L);
         progress.setClickPower(1.5);
-        progress.setResources(Map.of("stone", 240L));
+        progress.setResources(Map.of());
 
         when(userRepository.findByEmail("player@example.com"))
                 .thenReturn(Optional.of(user));
@@ -60,8 +60,8 @@ class AuthOfflineRewardTest {
                 .thenReturn(Optional.of(progress));
         when(machineCollectionService.collect(userId)).thenReturn(
                 new MachineCollectionResponse(
-                        Map.of("stone", 240L),
-                        new BalanceResponse(500L, Map.of("stone", 240L)),
+                        240L,
+                        new BalanceResponse(740L, Map.of()),
                         now
                 )
         );
@@ -79,15 +79,18 @@ class AuthOfflineRewardTest {
                 "player@example.com", "password"
         );
 
-        assertEquals(Map.of("stone", 240L), response.getOfflineRewards());
+        assertEquals(240L, response.getOfflineCredits());
+        assertEquals(740L, response.getCredits());
         assertEquals(now, user.getLastLoginAt());
         assertEquals(now, progress.getLastSeenAt());
-        verify(economyService).recordResourceOperation(
+        verify(economyService).recordCurrencyOperation(
                 userId,
                 LedgerOperationType.OFFLINE_REWARD,
-                "stone",
                 240L,
-                240L
+                null,
+                null,
+                null,
+                740L
         );
     }
 }

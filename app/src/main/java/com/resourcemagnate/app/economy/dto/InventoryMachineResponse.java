@@ -4,10 +4,9 @@ import java.time.Instant;
 
 public record InventoryMachineResponse(
         String machineCode,
-        String resourceCode,
         long productionPerHour,
         long storageCapacity,
-        long collectableAmount,
+        long collectableCredits,
         boolean installed,
         Instant installedAt,
         Instant acquiredAt,

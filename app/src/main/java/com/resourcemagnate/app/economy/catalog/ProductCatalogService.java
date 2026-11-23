@@ -19,20 +19,20 @@ public class ProductCatalogService {
         Map<String, ProductDefinition> definitions = new LinkedHashMap<>();
         add(definitions, new ProductDefinition(
                 ProductType.CLICK_UPGRADE, "click_power_1", 100,
-                0.5, null, null, null, null, "+0.5 click power"
+                0.5, null, null, null, "+0.5 click power"
         ));
         add(definitions, new ProductDefinition(
                 ProductType.TOOL, "wooden_pickaxe", 250,
-                null, 1.2, null, null, null, "x1.2 click damage"
+                null, 1.2, null, null, "x1.2 click damage"
         ));
         add(definitions, new ProductDefinition(
                 ProductType.TOOL, "iron_pickaxe", 800,
-                null, 1.8, null, null, null, "x1.8 click damage"
+                null, 1.8, null, null, "x1.8 click damage"
         ));
         add(definitions, new ProductDefinition(
                 ProductType.MACHINE, "basic_miner", 1500,
-                null, null, 10L, 240L, "stone",
-                "10 stone per hour, stores up to 240 stone"
+                null, null, 10L, 240L,
+                "10 credits per hour, stores up to 240 credits"
         ));
         products = Map.copyOf(definitions);
     }

@@ -99,10 +99,9 @@ class InventoryAndMachineServiceTest {
         assertEquals(false, response.tools().getFirst().equipped());
         assertEquals(1, response.machines().size());
         assertEquals("basic_miner", response.machines().getFirst().machineCode());
-        assertEquals("stone", response.machines().getFirst().resourceCode());
         assertEquals(10L, response.machines().getFirst().productionPerHour());
         assertEquals(240L, response.machines().getFirst().storageCapacity());
-        assertEquals(20L, response.machines().getFirst().collectableAmount());
+        assertEquals(20L, response.machines().getFirst().collectableCredits());
     }
 
     @Test
@@ -126,7 +125,7 @@ class InventoryAndMachineServiceTest {
     }
 
     @Test
-    void collect_shouldAddResourcesAndPreservePartialProductionTime() {
+    void collect_shouldAddCreditsAndPreservePartialProductionTime() {
         // 2h15m at 10/hour = 22 units, with 3 minutes kept for the next collection.
         InventoryMachine machine = machine(NOW.minusSeconds(8_100));
         when(userRepository.existsById(userId)).thenReturn(true);
@@ -137,8 +136,8 @@ class InventoryAndMachineServiceTest {
 
         MachineCollectionResponse response = collectionService.collect(userId);
 
-        assertEquals(22L, response.collectedResources().get("stone"));
-        assertEquals(22L, response.balance().resources().get("stone"));
+        assertEquals(22L, response.collectedCredits());
+        assertEquals(122L, response.balance().credits());
         assertEquals(NOW.minusSeconds(180), machine.getLastCollectedAt());
         verify(progressRepository).saveAndFlush(progress);
         verify(machineRepository).saveAll(List.of(machine));
@@ -155,8 +154,8 @@ class InventoryAndMachineServiceTest {
 
         MachineCollectionResponse response = collectionService.collect(userId);
 
-        assertEquals(240L, response.collectedResources().get("stone"));
-        assertEquals(240L, response.balance().resources().get("stone"));
+        assertEquals(240L, response.collectedCredits());
+        assertEquals(340L, response.balance().credits());
         assertEquals(NOW, machine.getLastCollectedAt());
         verify(progressRepository).saveAndFlush(progress);
         verify(machineRepository).saveAll(List.of(machine));
@@ -172,7 +171,7 @@ class InventoryAndMachineServiceTest {
 
         MachineCollectionResponse response = collectionService.collect(userId);
 
-        assertEquals(Map.of(), response.collectedResources());
+        assertEquals(0L, response.collectedCredits());
         assertEquals(new BalanceResponse(100L, Map.of()), response.balance());
         verify(progressRepository, never()).saveAndFlush(any());
         verify(machineRepository, never()).saveAll(any());
@@ -237,11 +236,11 @@ class InventoryAndMachineServiceTest {
         assertEquals(true, response.installed());
         assertEquals(NOW, response.installedAt());
         assertEquals(NOW, response.lastCollectedAt());
-        assertEquals(Map.of(), response.collectedResources());
+        assertEquals(0L, response.collectedCredits());
     }
 
     @Test
-    void uninstall_shouldCollectAccruedResourcesAndStopMachine() {
+    void uninstall_shouldCollectAccruedCreditsAndStopMachine() {
         InventoryMachine machine = machine(NOW.minusSeconds(7_200));
         when(userRepository.existsById(userId)).thenReturn(true);
         when(machineRepository.findByUserIdAndMachineCodeForUpdate(
@@ -256,8 +255,8 @@ class InventoryAndMachineServiceTest {
         );
 
         assertEquals(false, response.installed());
-        assertEquals(20L, response.collectedResources().get("stone"));
-        assertEquals(20L, response.balance().resources().get("stone"));
+        assertEquals(20L, response.collectedCredits());
+        assertEquals(120L, response.balance().credits());
         assertEquals(NOW, response.lastCollectedAt());
     }
 

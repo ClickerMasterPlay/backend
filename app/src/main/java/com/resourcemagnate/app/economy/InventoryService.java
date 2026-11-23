@@ -72,7 +72,6 @@ public class InventoryService {
                             : 0L;
                     return new InventoryMachineResponse(
                             item.getMachineCode(),
-                            product.producedResource(),
                             product.productionPerHour(),
                             product.storageCapacity(),
                             collectable,

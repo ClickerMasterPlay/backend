@@ -10,7 +10,6 @@ public record ProductDefinition(
         Double toolMultiplier,
         Long productionPerHour,
         Long storageCapacity,
-        String producedResource,
         String effect
 ) {
 }

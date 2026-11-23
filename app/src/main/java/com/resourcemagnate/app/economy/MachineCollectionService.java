@@ -17,8 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -43,23 +41,26 @@ public class MachineCollectionService {
                 ));
 
         Instant now = clock.instant();
-        Map<String, Long> collected = new HashMap<>();
+        long collectedCredits = 0L;
 
         for (InventoryMachine machine : machines) {
             if (!machine.isInstalled()) {
                 continue;
             }
-            collectFromMachine(machine, progress, now, collected);
+            collectedCredits = Math.addExact(
+                    collectedCredits,
+                    collectFromMachine(machine, progress, now)
+            );
         }
 
-        if (!collected.isEmpty()) {
-            // @Version on PlayerProgress prevents lost resource updates.
+        if (collectedCredits > 0) {
+            // @Version on PlayerProgress prevents lost balance updates.
             progressRepository.saveAndFlush(progress);
             machineRepository.saveAll(machines);
         }
 
         return new MachineCollectionResponse(
-                Map.copyOf(collected),
+                collectedCredits,
                 economyService.toBalance(progress),
                 now
         );
@@ -82,7 +83,7 @@ public class MachineCollectionService {
         machine.setLastCollectedAt(now);
         machineRepository.saveAndFlush(machine);
 
-        return machineState(machine, Map.of(), progress);
+        return machineState(machine, 0L, progress);
     }
 
     @Transactional
@@ -97,24 +98,22 @@ public class MachineCollectionService {
 
         PlayerProgress progress = getProgress(userId);
         Instant now = clock.instant();
-        Map<String, Long> collected = new HashMap<>();
-        collectFromMachine(machine, progress, now, collected);
+        long collectedCredits = collectFromMachine(machine, progress, now);
 
         machine.setInstalled(false);
         machine.setLastCollectedAt(now);
-        if (!collected.isEmpty()) {
+        if (collectedCredits > 0) {
             progressRepository.saveAndFlush(progress);
         }
         machineRepository.saveAndFlush(machine);
 
-        return machineState(machine, Map.copyOf(collected), progress);
+        return machineState(machine, collectedCredits, progress);
     }
 
-    private void collectFromMachine(
+    private long collectFromMachine(
             InventoryMachine machine,
             PlayerProgress progress,
-            Instant now,
-            Map<String, Long> collected
+            Instant now
     ) {
         ProductDefinition product = catalogService.get(
                 ProductType.MACHINE, machine.getMachineCode()
@@ -128,18 +127,12 @@ public class MachineCollectionService {
                 );
 
         if (accrual.amount() == 0) {
-            return;
+            return 0L;
         }
 
-        economyService.addResource(
-                progress, product.producedResource(), accrual.amount()
-        );
-        collected.merge(
-                product.producedResource(),
-                accrual.amount(),
-                Math::addExact
-        );
+        economyService.creditCredits(progress, accrual.amount());
         machine.setLastCollectedAt(accrual.collectedThrough());
+        return accrual.amount();
     }
 
     private InventoryMachine getMachineForUpdate(UUID userId, String machineCode) {
@@ -162,7 +155,7 @@ public class MachineCollectionService {
 
     private MachineStateResponse machineState(
             InventoryMachine machine,
-            Map<String, Long> collected,
+            long collectedCredits,
             PlayerProgress progress
     ) {
         return new MachineStateResponse(
@@ -170,7 +163,7 @@ public class MachineCollectionService {
                 machine.isInstalled(),
                 machine.getInstalledAt(),
                 machine.getLastCollectedAt(),
-                collected,
+                collectedCredits,
                 economyService.toBalance(progress)
         );
     }

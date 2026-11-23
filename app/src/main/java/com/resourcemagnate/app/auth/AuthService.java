@@ -57,7 +57,7 @@ public class AuthService {
                 .displayName(null)
                 .credits(0L)
                 .clickPower(1.0)
-                .offlineRewards(Map.of())
+                .offlineCredits(0L)
                 .build();
     }
 
@@ -89,7 +89,7 @@ public class AuthService {
                 .displayName(user.getDisplayName())
                 .credits(progress.getCredits())
                 .clickPower(progress.getClickPower())
-                .offlineRewards(Map.of())
+                .offlineCredits(0L)
                 .build();
     }
 
@@ -117,24 +117,25 @@ public class AuthService {
         MachineCollectionResponse offlineCollection =
                 machineCollectionService.collect(user.getId());
 
-        offlineCollection.collectedResources().forEach((resourceCode, amount) ->
-                economyService.recordResourceOperation(
-                        user.getId(),
-                        LedgerOperationType.OFFLINE_REWARD,
-                        resourceCode,
-                        amount,
-                        offlineCollection.balance().resources()
-                                .getOrDefault(resourceCode, 0L)
-                )
-        );
+        if (offlineCollection.collectedCredits() > 0) {
+            economyService.recordCurrencyOperation(
+                    user.getId(),
+                    LedgerOperationType.OFFLINE_REWARD,
+                    offlineCollection.collectedCredits(),
+                    null,
+                    null,
+                    null,
+                    offlineCollection.balance().credits()
+            );
+        }
 
         return AuthResponse.builder()
                 .userId(user.getId())
                 .isGuest(false)
                 .displayName(user.getDisplayName())
-                .credits(progress.getCredits())
+                .credits(offlineCollection.balance().credits())
                 .clickPower(progress.getClickPower())
-                .offlineRewards(offlineCollection.collectedResources())
+                .offlineCredits(offlineCollection.collectedCredits())
                 .build();
     }
 

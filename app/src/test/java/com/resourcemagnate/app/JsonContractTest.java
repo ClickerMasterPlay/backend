@@ -20,7 +20,7 @@ class JsonContractTest {
         String authJson = objectMapper.writeValueAsString(AuthResponse.builder()
                 .userId(UUID.randomUUID())
                 .isGuest(true)
-                .offlineRewards(Map.of())
+                .offlineCredits(0L)
                 .build());
         String progressJson = objectMapper.writeValueAsString(ProgressResponse.builder()
                 .userId(UUID.randomUUID())

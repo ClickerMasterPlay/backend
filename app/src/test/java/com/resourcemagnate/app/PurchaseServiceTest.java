@@ -72,13 +72,13 @@ class PurchaseServiceTest {
         idempotencyKey = UUID.randomUUID();
         progress = new PlayerProgress();
         progress.setUserId(userId);
-        progress.setCredits(500L);
+        progress.setCredits(2000L);
         progress.setClickPower(1.0);
-        progress.setResources(Map.of("stone", 2000L));
+        progress.setResources(Map.of("stone", 10_000L));
     }
 
     @Test
-    void purchase_shouldDebitStoneUpgradeClickPowerAndWriteResourceLedger() {
+    void purchase_shouldDebitCreditsUpgradeClickPowerAndWriteLedger() {
         PurchaseRequest request = new PurchaseRequest(
                 ProductType.CLICK_UPGRADE, "click_power_1"
         );
@@ -89,11 +89,10 @@ class PurchaseServiceTest {
         );
 
         assertEquals(100L, response.price());
-        assertEquals(500L, response.balance().credits());
-        assertEquals(1900L, response.balance().resources().get("stone"));
+        assertEquals(1900L, response.balance().credits());
         assertEquals(1.5, response.clickPower());
         assertEquals(PurchaseStatus.COMPLETED, response.status());
-        assertEquals(500L, progress.getCredits());
+        assertEquals(1900L, progress.getCredits());
         assertEquals(1.5, progress.getClickPower());
 
         verify(progressRepository).saveAndFlush(progress);
@@ -101,17 +100,17 @@ class PurchaseServiceTest {
         verify(ledgerRepository).save(argThat(entry ->
                 entry.getOperationType() == LedgerOperationType.PURCHASE
                         && entry.getAmount() == -100L
-                        && entry.getResourceAmount() == -100L
-                        && entry.getResourceCode().equals("stone")
                         && entry.getBalanceAfter() == 1900L
+                        && entry.getResourceAmount() == null
+                        && entry.getResourceCode() == null
         ));
         verify(challengeService).recordPurchase(userId, 100L);
     }
 
     @Test
-    void purchase_shouldNotUseCreditsWhenStoneIsInsufficient() {
-        progress.setCredits(10_000L);
-        progress.setResources(Map.of("stone", 50L));
+    void purchase_shouldNotUseResourcesWhenCreditsAreInsufficient() {
+        progress.setCredits(50L);
+        progress.setResources(Map.of("stone", 10_000L));
         PurchaseRequest request = new PurchaseRequest(
                 ProductType.TOOL, "wooden_pickaxe"
         );
@@ -137,9 +136,9 @@ class PurchaseServiceTest {
                 () -> purchaseService.purchase(userId, idempotencyKey, request)
         );
 
-        assertEquals("INSUFFICIENT_RESOURCES", exception.getErrorCode());
-        assertEquals(10_000L, progress.getCredits());
-        assertEquals(50L, progress.getResources().get("stone"));
+        assertEquals("INSUFFICIENT_FUNDS", exception.getErrorCode());
+        assertEquals(50L, progress.getCredits());
+        assertEquals(10_000L, progress.getResources().get("stone"));
         verify(progressRepository, never()).saveAndFlush(any());
         verify(purchaseRepository, never()).saveAndFlush(any());
         verify(ledgerRepository, never()).save(any());
@@ -224,7 +223,7 @@ class PurchaseServiceTest {
     }
 
     @Test
-    void purchase_shouldDebitStoneAndAddToolToInventory() {
+    void purchase_shouldDebitCreditsAndAddToolToInventory() {
         PurchaseRequest request = new PurchaseRequest(
                 ProductType.TOOL, "wooden_pickaxe"
         );
@@ -235,23 +234,21 @@ class PurchaseServiceTest {
         );
 
         assertEquals(250L, response.price());
-        assertEquals(500L, response.balance().credits());
-        assertEquals(1750L, response.balance().resources().get("stone"));
+        assertEquals(1750L, response.balance().credits());
         verify(inventoryToolRepository).save(argThat(item ->
                 item.getUserId().equals(userId)
                         && item.getToolCode().equals("wooden_pickaxe")
         ));
         verify(ledgerRepository).save(argThat(entry ->
                 entry.getAmount() == -250L
-                        && entry.getResourceAmount() == -250L
-                        && entry.getResourceCode().equals("stone")
+                        && entry.getResourceAmount() == null
+                        && entry.getResourceCode() == null
                         && entry.getProductType() == ProductType.TOOL
         ));
     }
 
     @Test
-    void purchase_shouldDebitStoneWithoutChangingCreditsAndAddMachine() {
-        progress.setResources(Map.of("stone", 2000L));
+    void purchase_shouldDebitCreditsAndAddMachine() {
         PurchaseRequest request = new PurchaseRequest(
                 ProductType.MACHINE, "basic_miner"
         );
@@ -262,7 +259,6 @@ class PurchaseServiceTest {
         );
 
         assertEquals(500L, response.balance().credits());
-        assertEquals(500L, response.balance().resources().get("stone"));
         assertEquals(500L, progress.getCredits());
         verify(inventoryMachineRepository).save(argThat(item ->
                 item.getUserId().equals(userId)
@@ -272,8 +268,8 @@ class PurchaseServiceTest {
         ));
         verify(ledgerRepository).save(argThat(entry ->
                 entry.getAmount() == -1500L
-                        && entry.getResourceAmount() == -1500L
-                        && entry.getResourceCode().equals("stone")
+                        && entry.getResourceAmount() == null
+                        && entry.getResourceCode() == null
                         && entry.getBalanceAfter() == 500L
                         && entry.getProductType() == ProductType.MACHINE
         ));
@@ -281,9 +277,9 @@ class PurchaseServiceTest {
     }
 
     @Test
-    void machinePurchase_shouldFailWhenStoneIsInsufficientWithoutUsingCredits() {
-        progress.setCredits(10_000L);
-        progress.setResources(Map.of("stone", 1499L));
+    void machinePurchase_shouldFailWhenCreditsAreInsufficientWithoutUsingResources() {
+        progress.setCredits(1499L);
+        progress.setResources(Map.of("stone", 10_000L));
         PurchaseRequest request = new PurchaseRequest(
                 ProductType.MACHINE, "basic_miner"
         );
@@ -305,9 +301,9 @@ class PurchaseServiceTest {
                 () -> purchaseService.purchase(userId, idempotencyKey, request)
         );
 
-        assertEquals("INSUFFICIENT_RESOURCES", exception.getErrorCode());
-        assertEquals(10_000L, progress.getCredits());
-        assertEquals(1499L, progress.getResources().get("stone"));
+        assertEquals("INSUFFICIENT_FUNDS", exception.getErrorCode());
+        assertEquals(1499L, progress.getCredits());
+        assertEquals(10_000L, progress.getResources().get("stone"));
         verify(inventoryMachineRepository, never()).save(any());
         verify(ledgerRepository, never()).save(any());
     }

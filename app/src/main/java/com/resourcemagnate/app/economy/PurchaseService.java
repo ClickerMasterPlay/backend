@@ -26,8 +26,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PurchaseService {
 
-    private static final String SHOP_RESOURCE_CODE = "stone";
-
     private final PurchaseRepository purchaseRepository;
     private final InventoryToolRepository inventoryToolRepository;
     private final InventoryMachineRepository inventoryMachineRepository;
@@ -88,9 +86,7 @@ public class PurchaseService {
                         "PROGRESS_NOT_FOUND", "Player progress not found"
                 ));
 
-        long resourceBalanceAfter = economyService.debitResource(
-                progress, SHOP_RESOURCE_CODE, product.price()
-        );
+        economyService.debitCredits(progress, product.price());
         applyProduct(userId, progress, product);
 
         // Force the version check inside this method rather than at transaction commit.
@@ -110,14 +106,14 @@ public class PurchaseService {
         purchase.setResponseJson(objectMapper.valueToTree(response));
         purchaseRepository.saveAndFlush(purchase);
 
-        economyService.recordResourcePurchaseOperation(
+        economyService.recordCurrencyOperation(
                 userId,
-                SHOP_RESOURCE_CODE,
-                product.price(),
+                LedgerOperationType.PURCHASE,
+                -product.price(),
                 product.type(),
                 product.id(),
                 purchaseId,
-                resourceBalanceAfter
+                progress.getCredits()
         );
         challengeService.recordPurchase(userId, product.price());
 
