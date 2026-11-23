@@ -1,12 +1,14 @@
 package com.resourcemagnate.app.economy;
 
-import java.time.Instant;
 import java.math.BigInteger;
+import java.time.Duration;
+import java.time.Instant;
 
 public final class MachineProductionCalculator {
 
     private static final BigInteger NANOS_PER_SECOND = BigInteger.valueOf(1_000_000_000L);
     private static final BigInteger NANOS_PER_HOUR = BigInteger.valueOf(3_600_000_000_000L);
+    public static final Duration MAX_OFFLINE_WINDOW = Duration.ofHours(24);
 
     private MachineProductionCalculator() {
     }
@@ -30,7 +32,11 @@ public final class MachineProductionCalculator {
             return new Accrual(0, lastCollectedAt);
         }
 
-        BigInteger elapsedNanos = elapsedNanos(lastCollectedAt, now);
+        Instant windowStart = now.minus(MAX_OFFLINE_WINDOW);
+        Instant effectiveStart = lastCollectedAt.isBefore(windowStart)
+                ? windowStart
+                : lastCollectedAt;
+        BigInteger elapsedNanos = elapsedNanos(effectiveStart, now);
         BigInteger produced = elapsedNanos
                 .multiply(BigInteger.valueOf(productionPerHour))
                 .divide(NANOS_PER_HOUR);
@@ -52,7 +58,7 @@ public final class MachineProductionCalculator {
                 BigInteger.valueOf(productionPerHour)
         );
         BigInteger[] secondsAndNanos = consumedNanos.divideAndRemainder(NANOS_PER_SECOND);
-        Instant collectedThrough = lastCollectedAt
+        Instant collectedThrough = effectiveStart
                 .plusSeconds(secondsAndNanos[0].longValueExact())
                 .plusNanos(secondsAndNanos[1].longValueExact());
         return new Accrual(amount, collectedThrough);

@@ -198,6 +198,16 @@ class InventoryAndMachineServiceTest {
     }
 
     @Test
+    void calculator_shouldNeverAccrueMoreThanTwentyFourHours() {
+        var accrual = MachineProductionCalculator.calculate(
+                NOW.minusSeconds(72 * 3_600L), NOW, 10, 1_000
+        );
+
+        assertEquals(240L, accrual.amount());
+        assertEquals(NOW, accrual.collectedThrough());
+    }
+
+    @Test
     void calculator_shouldUseExplicitCapacityInsteadOfClientOnlineTime() {
         var accrual = MachineProductionCalculator.calculate(
                 NOW.minusSeconds(72 * 3_600L), NOW, 10, 50
