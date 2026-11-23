@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 
 import jakarta.persistence.LockModeType;
 
@@ -19,8 +21,19 @@ public interface InventoryMachineRepository
 
     List<InventoryMachine> findAllByUserIdOrderByAcquiredAtAsc(UUID userId);
 
+    @Query("""
+        select distinct m.userId from InventoryMachine m
+        where m.installed = true
+        order by m.userId
+        """)
+    Slice<UUID> findInstalledUserIds(Pageable pageable);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select m from InventoryMachine m where m.userId = :userId")
+    @Query("""
+        select m from InventoryMachine m
+        where m.userId = :userId
+        order by m.machineCode
+        """)
     List<InventoryMachine> findAllByUserIdForUpdate(@Param("userId") UUID userId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

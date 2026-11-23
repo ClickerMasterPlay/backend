@@ -2,11 +2,9 @@ package com.resourcemagnate.app;
 
 import com.resourcemagnate.app.auth.AuthService;
 import com.resourcemagnate.app.auth.dto.AuthResponse;
-import com.resourcemagnate.app.economy.EconomyService;
 import com.resourcemagnate.app.economy.MachineCollectionService;
 import com.resourcemagnate.app.economy.dto.BalanceResponse;
 import com.resourcemagnate.app.economy.dto.MachineCollectionResponse;
-import com.resourcemagnate.app.economy.model.LedgerOperationType;
 import com.resourcemagnate.app.progress.PlayerProgress;
 import com.resourcemagnate.app.progress.PlayerProgressRepository;
 import com.resourcemagnate.app.user.User;
@@ -26,7 +24,6 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -36,7 +33,6 @@ class AuthOfflineRewardTest {
     @Mock private PlayerProgressRepository progressRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private MachineCollectionService machineCollectionService;
-    @Mock private EconomyService economyService;
 
     @Test
     void login_shouldCollectOfflineProductionAndReturnIt() {
@@ -72,7 +68,6 @@ class AuthOfflineRewardTest {
                 progressRepository,
                 passwordEncoder,
                 machineCollectionService,
-                economyService,
                 Clock.fixed(now, ZoneOffset.UTC)
         );
 
@@ -85,15 +80,6 @@ class AuthOfflineRewardTest {
         assertEquals(now, user.getLastLoginAt());
         assertEquals(now, progress.getLastSeenAt());
         verify(machineCollectionService).collect(userId);
-        verify(economyService).recordCurrencyOperation(
-                userId,
-                LedgerOperationType.OFFLINE_REWARD,
-                240L,
-                null,
-                null,
-                null,
-                740L
-        );
     }
 
     @Test
@@ -130,7 +116,6 @@ class AuthOfflineRewardTest {
                 progressRepository,
                 passwordEncoder,
                 machineCollectionService,
-                economyService,
                 Clock.fixed(now, ZoneOffset.UTC)
         );
 
@@ -141,6 +126,5 @@ class AuthOfflineRewardTest {
         assertEquals(0L, response.getOfflineCredits());
         assertEquals(500L, response.getCredits());
         verify(machineCollectionService).collect(userId);
-        verifyNoInteractions(economyService);
     }
 }

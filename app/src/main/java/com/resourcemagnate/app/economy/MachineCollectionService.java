@@ -6,6 +6,7 @@ import com.resourcemagnate.app.economy.catalog.ProductDefinition;
 import com.resourcemagnate.app.economy.dto.MachineCollectionResponse;
 import com.resourcemagnate.app.economy.dto.MachineStateResponse;
 import com.resourcemagnate.app.economy.model.InventoryMachine;
+import com.resourcemagnate.app.economy.model.LedgerOperationType;
 import com.resourcemagnate.app.economy.model.ProductType;
 import com.resourcemagnate.app.economy.repository.InventoryMachineRepository;
 import com.resourcemagnate.app.progress.PlayerProgress;
@@ -41,21 +42,14 @@ public class MachineCollectionService {
                 ));
 
         Instant now = clock.instant();
-        long collectedCredits = 0L;
+        long newlyCredited = accrueFromMachines(machines, progress, now);
+        long collectedCredits = resetBanks(machines, now);
 
-        for (InventoryMachine machine : machines) {
-            if (!machine.isInstalled()) {
-                continue;
-            }
-            collectedCredits = Math.addExact(
-                    collectedCredits,
-                    collectFromMachine(machine, progress, now)
-            );
-        }
-
-        if (collectedCredits > 0) {
-            // @Version on PlayerProgress prevents lost balance updates.
+        if (newlyCredited > 0) {
             progressRepository.saveAndFlush(progress);
+            recordMachineCredits(userId, newlyCredited, progress);
+        }
+        if (newlyCredited > 0 || collectedCredits > 0) {
             machineRepository.saveAll(machines);
         }
 
@@ -64,6 +58,26 @@ public class MachineCollectionService {
                 economyService.toBalance(progress),
                 now
         );
+    }
+
+    @Transactional
+    public void accrueInBackground(UUID userId) {
+        var machines = machineRepository.findAllByUserIdForUpdate(userId);
+        if (machines.isEmpty()) {
+            return;
+        }
+
+        PlayerProgress progress = getProgress(userId);
+        long newlyCredited = accrueFromMachines(
+                machines, progress, clock.instant()
+        );
+        if (newlyCredited == 0) {
+            return;
+        }
+
+        progressRepository.saveAndFlush(progress);
+        machineRepository.saveAll(machines);
+        recordMachineCredits(userId, newlyCredited, progress);
     }
 
     @Transactional
@@ -81,6 +95,7 @@ public class MachineCollectionService {
         machine.setInstalled(true);
         machine.setInstalledAt(now);
         machine.setLastCollectedAt(now);
+        machine.setBankedCredits(0L);
         machineRepository.saveAndFlush(machine);
 
         return machineState(machine, 0L, progress);
@@ -98,19 +113,39 @@ public class MachineCollectionService {
 
         PlayerProgress progress = getProgress(userId);
         Instant now = clock.instant();
-        long collectedCredits = collectFromMachine(machine, progress, now);
+        long newlyCredited = accrueFromMachine(machine, progress, now);
+        long collectedCredits = machine.getBankedCredits();
 
         machine.setInstalled(false);
         machine.setLastCollectedAt(now);
-        if (collectedCredits > 0) {
+        machine.setBankedCredits(0L);
+        if (newlyCredited > 0) {
             progressRepository.saveAndFlush(progress);
+            recordMachineCredits(userId, newlyCredited, progress);
         }
         machineRepository.saveAndFlush(machine);
 
         return machineState(machine, collectedCredits, progress);
     }
 
-    private long collectFromMachine(
+    private long accrueFromMachines(
+            Iterable<InventoryMachine> machines,
+            PlayerProgress progress,
+            Instant now
+    ) {
+        long total = 0L;
+        for (InventoryMachine machine : machines) {
+            if (machine.isInstalled()) {
+                total = Math.addExact(
+                        total,
+                        accrueFromMachine(machine, progress, now)
+                );
+            }
+        }
+        return total;
+    }
+
+    private long accrueFromMachine(
             InventoryMachine machine,
             PlayerProgress progress,
             Instant now
@@ -118,12 +153,21 @@ public class MachineCollectionService {
         ProductDefinition product = catalogService.get(
                 ProductType.MACHINE, machine.getMachineCode()
         );
+        long bankedCredits = machine.getBankedCredits();
+        if (bankedCredits < 0 || bankedCredits > product.storageCapacity()) {
+            throw new IllegalStateException("Invalid machine credit bank state");
+        }
+        long remainingCapacity = product.storageCapacity() - bankedCredits;
+        if (remainingCapacity == 0) {
+            return 0L;
+        }
+
         MachineProductionCalculator.Accrual accrual =
                 MachineProductionCalculator.calculate(
                         machine.getLastCollectedAt(),
                         now,
                         product.creditsPerHour(),
-                        product.storageCapacity()
+                        remainingCapacity
                 );
 
         if (accrual.amount() == 0) {
@@ -131,8 +175,48 @@ public class MachineCollectionService {
         }
 
         economyService.creditCredits(progress, accrual.amount());
+        machine.setBankedCredits(Math.addExact(bankedCredits, accrual.amount()));
         machine.setLastCollectedAt(accrual.collectedThrough());
         return accrual.amount();
+    }
+
+    private long resetBanks(
+            Iterable<InventoryMachine> machines,
+            Instant now
+    ) {
+        long total = 0L;
+        for (InventoryMachine machine : machines) {
+            if (!machine.isInstalled()) {
+                continue;
+            }
+            ProductDefinition product = catalogService.get(
+                    ProductType.MACHINE, machine.getMachineCode()
+            );
+            long bankedCredits = machine.getBankedCredits();
+            total = Math.addExact(total, bankedCredits);
+            if (bankedCredits == product.storageCapacity()) {
+                // Time while the bank was full must not be produced later.
+                machine.setLastCollectedAt(now);
+            }
+            machine.setBankedCredits(0L);
+        }
+        return total;
+    }
+
+    private void recordMachineCredits(
+            UUID userId,
+            long amount,
+            PlayerProgress progress
+    ) {
+        economyService.recordCurrencyOperation(
+                userId,
+                LedgerOperationType.OFFLINE_REWARD,
+                amount,
+                null,
+                null,
+                null,
+                progress.getCredits()
+        );
     }
 
     private InventoryMachine getMachineForUpdate(UUID userId, String machineCode) {

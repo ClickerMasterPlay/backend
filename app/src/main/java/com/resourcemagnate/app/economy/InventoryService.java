@@ -7,6 +7,7 @@ import com.resourcemagnate.app.economy.dto.InventoryMachineResponse;
 import com.resourcemagnate.app.economy.dto.InventoryResponse;
 import com.resourcemagnate.app.economy.dto.InventoryToolResponse;
 import com.resourcemagnate.app.economy.dto.ToolEquipmentResponse;
+import com.resourcemagnate.app.economy.model.InventoryMachine;
 import com.resourcemagnate.app.economy.model.ProductType;
 import com.resourcemagnate.app.economy.repository.InventoryMachineRepository;
 import com.resourcemagnate.app.economy.repository.InventoryToolRepository;
@@ -62,14 +63,7 @@ public class InventoryService {
                     ProductDefinition product = catalogService.get(
                             ProductType.MACHINE, item.getMachineCode()
                     );
-                    long collectable = item.isInstalled()
-                            ? MachineProductionCalculator.calculate(
-                                    item.getLastCollectedAt(),
-                                    now,
-                                    product.creditsPerHour(),
-                                    product.storageCapacity()
-                            ).amount()
-                            : 0L;
+                    long collectable = collectableCredits(item, product, now);
                     return new InventoryMachineResponse(
                             item.getMachineCode(),
                             product.creditsPerHour(),
@@ -84,6 +78,31 @@ public class InventoryService {
                 .toList();
 
         return new InventoryResponse(tools, machines);
+    }
+
+    private long collectableCredits(
+            InventoryMachine machine,
+            ProductDefinition product,
+            Instant now
+    ) {
+        if (!machine.isInstalled()) {
+            return 0L;
+        }
+        long banked = machine.getBankedCredits();
+        if (banked < 0 || banked > product.storageCapacity()) {
+            throw new IllegalStateException("Invalid machine credit bank state");
+        }
+        long remainingCapacity = product.storageCapacity() - banked;
+        if (remainingCapacity == 0) {
+            return banked;
+        }
+        long pending = MachineProductionCalculator.calculate(
+                machine.getLastCollectedAt(),
+                now,
+                product.creditsPerHour(),
+                remainingCapacity
+        ).amount();
+        return Math.addExact(banked, pending);
     }
 
     @Transactional

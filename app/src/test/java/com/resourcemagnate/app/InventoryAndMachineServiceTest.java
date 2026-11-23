@@ -9,6 +9,7 @@ import com.resourcemagnate.app.economy.dto.MachineStateResponse;
 import com.resourcemagnate.app.economy.dto.ToolEquipmentResponse;
 import com.resourcemagnate.app.economy.model.InventoryMachine;
 import com.resourcemagnate.app.economy.model.InventoryTool;
+import com.resourcemagnate.app.economy.model.LedgerOperationType;
 import com.resourcemagnate.app.economy.repository.InventoryMachineRepository;
 import com.resourcemagnate.app.economy.repository.InventoryToolRepository;
 import com.resourcemagnate.app.economy.repository.LedgerRepository;
@@ -162,6 +163,56 @@ class InventoryAndMachineServiceTest {
     }
 
     @Test
+    void backgroundAccrual_shouldCreditBalanceWithoutEmptyingBank() {
+        InventoryMachine machine = machine(NOW.minusSeconds(60));
+        when(machineRepository.findAllByUserIdForUpdate(userId))
+                .thenReturn(List.of(machine));
+        when(progressRepository.findByUserId(userId)).thenReturn(Optional.of(progress));
+
+        collectionService.accrueInBackground(userId);
+
+        assertEquals(700L, progress.getCredits());
+        assertEquals(600L, machine.getBankedCredits());
+        assertEquals(NOW, machine.getLastCollectedAt());
+        verify(ledgerRepository).save(argThat(entry ->
+                entry.getOperationType() == LedgerOperationType.OFFLINE_REWARD
+                        && entry.getAmount() == 600L
+                        && entry.getBalanceAfter() == 700L
+        ));
+
+        when(userRepository.existsById(userId)).thenReturn(true);
+        MachineCollectionResponse response = collectionService.collect(userId);
+
+        assertEquals(600L, response.collectedCredits());
+        assertEquals(700L, response.balance().credits());
+        assertEquals(0L, machine.getBankedCredits());
+        verify(progressRepository, times(1)).saveAndFlush(progress);
+        verify(machineRepository, times(2)).saveAll(List.of(machine));
+    }
+
+    @Test
+    void collect_shouldDiscardProductionTimeWhileBankWasFull() {
+        InventoryMachine machine = machine(NOW.minusSeconds(3_600));
+        machine.setBankedCredits(864_000L);
+        when(userRepository.existsById(userId)).thenReturn(true);
+        when(machineRepository.findAllByUserIdForUpdate(userId))
+                .thenReturn(List.of(machine));
+        when(progressRepository.findByUserId(userId)).thenReturn(Optional.of(progress));
+
+        MachineCollectionResponse response = collectionService.collect(userId);
+
+        assertEquals(864_000L, response.collectedCredits());
+        assertEquals(100L, response.balance().credits());
+        assertEquals(0L, machine.getBankedCredits());
+        assertEquals(NOW, machine.getLastCollectedAt());
+
+        MachineCollectionResponse immediateRepeat = collectionService.collect(userId);
+        assertEquals(0L, immediateRepeat.collectedCredits());
+        assertEquals(100L, immediateRepeat.balance().credits());
+        verify(progressRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
     void collect_shouldNotWriteWhenNothingAccumulated() {
         InventoryMachine machine = machine(NOW.minusMillis(50));
         when(userRepository.existsById(userId)).thenReturn(true);
@@ -276,6 +327,7 @@ class InventoryAndMachineServiceTest {
         machine.setMachineCode("basic_miner");
         machine.setAcquiredAt(lastCollectedAt);
         machine.setLastCollectedAt(lastCollectedAt);
+        machine.setBankedCredits(0L);
         machine.setInstalled(true);
         machine.setInstalledAt(lastCollectedAt);
         return machine;

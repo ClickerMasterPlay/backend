@@ -3,10 +3,8 @@ package com.resourcemagnate.app.auth;
 import com.resourcemagnate.app.auth.dto.AuthResponse;
 import com.resourcemagnate.app.auth.dto.RegisterRequest;
 import com.resourcemagnate.app.common.exception.BusinessException;
-import com.resourcemagnate.app.economy.EconomyService;
 import com.resourcemagnate.app.economy.MachineCollectionService;
 import com.resourcemagnate.app.economy.dto.MachineCollectionResponse;
-import com.resourcemagnate.app.economy.model.LedgerOperationType;
 import com.resourcemagnate.app.progress.PlayerProgress;
 import com.resourcemagnate.app.progress.PlayerProgressRepository;
 import com.resourcemagnate.app.user.User;
@@ -29,7 +27,6 @@ public class AuthService {
     private final PlayerProgressRepository progressRepository;
     private final PasswordEncoder passwordEncoder;
     private final MachineCollectionService machineCollectionService;
-    private final EconomyService economyService;
     private final Clock clock;
 
     @Transactional
@@ -116,18 +113,6 @@ public class AuthService {
 
         MachineCollectionResponse offlineCollection =
                 machineCollectionService.collect(user.getId());
-
-        if (offlineCollection.collectedCredits() > 0) {
-            economyService.recordCurrencyOperation(
-                    user.getId(),
-                    LedgerOperationType.OFFLINE_REWARD,
-                    offlineCollection.collectedCredits(),
-                    null,
-                    null,
-                    null,
-                    offlineCollection.balance().credits()
-            );
-        }
 
         return AuthResponse.builder()
                 .userId(user.getId())

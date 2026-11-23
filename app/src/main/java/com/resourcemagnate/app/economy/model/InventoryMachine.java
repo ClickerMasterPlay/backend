@@ -32,6 +32,9 @@ public class InventoryMachine {
     @Column(name = "last_collected_at", nullable = false)
     private Instant lastCollectedAt;
 
+    @Column(name = "banked_credits", nullable = false)
+    private long bankedCredits;
+
     @Column(name = "is_installed", nullable = false)
     private boolean installed;
 
