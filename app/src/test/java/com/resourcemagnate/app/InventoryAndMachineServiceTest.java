@@ -46,6 +46,7 @@ class InventoryAndMachineServiceTest {
 
     private InventoryService inventoryService;
     private MachineCollectionService collectionService;
+    private EconomyService economyService;
     private UUID userId;
     private PlayerProgress progress;
 
@@ -53,7 +54,7 @@ class InventoryAndMachineServiceTest {
     void setUp() {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         ProductCatalogService catalog = new ProductCatalogService();
-        EconomyService economyService = new EconomyService(
+        economyService = new EconomyService(
                 userRepository, progressRepository, ledgerRepository
         );
         inventoryService = new InventoryService(
@@ -170,6 +171,7 @@ class InventoryAndMachineServiceTest {
     @Test
     void backgroundAccrual_shouldCreditBalanceWithoutEmptyingBank() {
         InventoryMachine machine = machine(NOW.minusSeconds(60));
+        progress.setResources(Map.of("stone", 17L));
         when(machineRepository.findAllByUserIdForUpdate(userId))
                 .thenReturn(List.of(machine));
         when(progressRepository.findByUserId(userId)).thenReturn(Optional.of(progress));
@@ -177,6 +179,7 @@ class InventoryAndMachineServiceTest {
         collectionService.accrueInBackground(userId);
 
         assertEquals(700L, progress.getCredits());
+        assertEquals(Map.of("stone", 17L), progress.getResources());
         assertEquals(600L, machine.getBankedCredits());
         assertEquals(NOW, machine.getLastCollectedAt());
         verify(ledgerRepository).save(argThat(entry ->
@@ -190,10 +193,65 @@ class InventoryAndMachineServiceTest {
 
         assertEquals(0L, response.creditedCredits());
         assertEquals(700L, response.balance().credits());
+        assertEquals(Map.of("stone", 17L), response.balance().resources());
         assertEquals(600L, response.banks().getFirst().releasedCredits());
         assertEquals(0L, machine.getBankedCredits());
         verify(progressRepository, times(1)).saveAndFlush(progress);
         verify(machineRepository, times(2)).saveAll(List.of(machine));
+    }
+
+    @Test
+    void manualThenBackgroundCollection_shouldNotCreditSameIntervalTwice() {
+        InventoryMachine machine = machine(NOW.minusSeconds(1));
+        when(userRepository.existsById(userId)).thenReturn(true);
+        when(machineRepository.findAllByUserIdForUpdate(userId))
+                .thenReturn(List.of(machine));
+        when(progressRepository.findByUserId(userId)).thenReturn(Optional.of(progress));
+
+        MachineCollectionResponse manual = collectionService.collect(userId);
+        collectionService.accrueInBackground(userId);
+
+        assertEquals(10L, manual.creditedCredits());
+        assertEquals(110L, progress.getCredits());
+        assertEquals(NOW, machine.getLastCollectedAt());
+        assertEquals(0L, machine.getBankedCredits());
+        verify(progressRepository, times(1)).saveAndFlush(progress);
+    }
+
+    @Test
+    void repeatedManualCollections_shouldRewardIntervalOnlyOnce() {
+        InventoryMachine machine = machine(NOW.minusSeconds(1));
+        when(userRepository.existsById(userId)).thenReturn(true);
+        when(machineRepository.findAllByUserIdForUpdate(userId))
+                .thenReturn(List.of(machine));
+        when(progressRepository.findByUserId(userId)).thenReturn(Optional.of(progress));
+
+        MachineCollectionResponse first = collectionService.collect(userId);
+        MachineCollectionResponse second = collectionService.collect(userId);
+        MachineCollectionResponse third = collectionService.collect(userId);
+
+        assertEquals(10L, first.creditedCredits());
+        assertEquals(0L, second.creditedCredits());
+        assertEquals(0L, third.creditedCredits());
+        assertEquals(110L, progress.getCredits());
+        verify(progressRepository, times(1)).saveAndFlush(progress);
+    }
+
+    @Test
+    void machineAndStore_shouldUsePlayerProgressCreditsAsSingleSourceOfTruth() {
+        InventoryMachine machine = machine(NOW.minusSeconds(1));
+        progress.setCredits(2_000L);
+        when(userRepository.existsById(userId)).thenReturn(true);
+        when(machineRepository.findAllByUserIdForUpdate(userId))
+                .thenReturn(List.of(machine));
+        when(progressRepository.findByUserId(userId)).thenReturn(Optional.of(progress));
+
+        MachineCollectionResponse production = collectionService.collect(userId);
+        economyService.debitCredits(progress, 1_500L);
+
+        assertEquals(2_010L, production.balance().credits());
+        assertEquals(510L, progress.getCredits());
+        assertEquals(510L, economyService.toBalance(progress).credits());
     }
 
     @Test

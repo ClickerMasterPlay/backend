@@ -37,7 +37,7 @@ class AuthOfflineRewardTest {
     @Mock private MachineCollectionService machineCollectionService;
 
     @Test
-    void login_shouldCollectOfflineProductionAndReturnIt() {
+    void login_shouldAddOnlyMissingCreditsAndReturnEntireReleasedBank() {
         Instant now = Instant.parse("2026-11-08T10:00:00Z");
         UUID userId = UUID.randomUUID();
         User user = new User();
@@ -59,11 +59,11 @@ class AuthOfflineRewardTest {
                 .thenReturn(Optional.of(progress));
         when(machineCollectionService.collect(userId)).thenReturn(
                 new MachineCollectionResponse(
-                        0L,
-                        new BalanceResponse(740L, Map.of()),
+                        10L,
+                        new BalanceResponse(510L, Map.of()),
                         now,
                         List.of(new MachineBankStateResponse(
-                                "basic_miner", 240L, 0L, 864_000L, false
+                                "basic_miner", 210L, 0L, 864_000L, false
                         ))
                 )
         );
@@ -80,8 +80,8 @@ class AuthOfflineRewardTest {
                 "player@example.com", "password"
         );
 
-        assertEquals(240L, response.getOfflineCredits());
-        assertEquals(740L, response.getCredits());
+        assertEquals(210L, response.getOfflineCredits());
+        assertEquals(510L, response.getCredits());
         assertEquals(now, user.getLastLoginAt());
         assertEquals(now, progress.getLastSeenAt());
         verify(machineCollectionService).collect(userId);
