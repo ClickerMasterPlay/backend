@@ -6,6 +6,7 @@ import com.resourcemagnate.app.economy.dto.CatalogResponse;
 import com.resourcemagnate.app.economy.model.ProductType;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,10 +32,20 @@ public class ProductCatalogService {
         ));
         add(definitions, new ProductDefinition(
                 ProductType.MACHINE, "basic_miner", 1500,
-                null, null, 10L, 240L,
-                "10 credits per hour, stores up to 240 credits"
+                null, null, 36_000L, 864_000L,
+                "10 credits per second, stores up to 864000 credits"
         ));
-        products = Map.copyOf(definitions);
+        add(definitions, new ProductDefinition(
+                ProductType.MACHINE, "advanced_miner", 7500,
+                null, null, 180_000L, 4_320_000L,
+                "50 credits per second, stores up to 4320000 credits"
+        ));
+        add(definitions, new ProductDefinition(
+                ProductType.MACHINE, "elite_miner", 30000,
+                null, null, 720_000L, 17_280_000L,
+                "200 credits per second, stores up to 17280000 credits"
+        ));
+        products = Collections.unmodifiableMap(new LinkedHashMap<>(definitions));
     }
 
     public ProductDefinition get(ProductType type, String id) {

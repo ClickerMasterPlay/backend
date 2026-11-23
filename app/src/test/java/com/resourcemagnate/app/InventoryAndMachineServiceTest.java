@@ -99,9 +99,9 @@ class InventoryAndMachineServiceTest {
         assertEquals(false, response.tools().getFirst().equipped());
         assertEquals(1, response.machines().size());
         assertEquals("basic_miner", response.machines().getFirst().machineCode());
-        assertEquals(10L, response.machines().getFirst().productionPerHour());
-        assertEquals(240L, response.machines().getFirst().storageCapacity());
-        assertEquals(20L, response.machines().getFirst().collectableCredits());
+        assertEquals(36_000L, response.machines().getFirst().productionPerHour());
+        assertEquals(864_000L, response.machines().getFirst().storageCapacity());
+        assertEquals(72_000L, response.machines().getFirst().collectableCredits());
     }
 
     @Test
@@ -126,7 +126,7 @@ class InventoryAndMachineServiceTest {
 
     @Test
     void collect_shouldAddCreditsAndPreservePartialProductionTime() {
-        // 2h15m at 10/hour = 22 units, with 3 minutes kept for the next collection.
+        // 2h15m at 10/second = 81,000 credits.
         InventoryMachine machine = machine(NOW.minusSeconds(8_100));
         when(userRepository.existsById(userId)).thenReturn(true);
         when(machineRepository.findAllByUserIdForUpdate(userId))
@@ -136,9 +136,9 @@ class InventoryAndMachineServiceTest {
 
         MachineCollectionResponse response = collectionService.collect(userId);
 
-        assertEquals(22L, response.collectedCredits());
-        assertEquals(122L, response.balance().credits());
-        assertEquals(NOW.minusSeconds(180), machine.getLastCollectedAt());
+        assertEquals(81_000L, response.collectedCredits());
+        assertEquals(81_100L, response.balance().credits());
+        assertEquals(NOW, machine.getLastCollectedAt());
         verify(progressRepository).saveAndFlush(progress);
         verify(machineRepository).saveAll(List.of(machine));
     }
@@ -154,8 +154,8 @@ class InventoryAndMachineServiceTest {
 
         MachineCollectionResponse response = collectionService.collect(userId);
 
-        assertEquals(240L, response.collectedCredits());
-        assertEquals(340L, response.balance().credits());
+        assertEquals(864_000L, response.collectedCredits());
+        assertEquals(864_100L, response.balance().credits());
         assertEquals(NOW, machine.getLastCollectedAt());
         verify(progressRepository).saveAndFlush(progress);
         verify(machineRepository).saveAll(List.of(machine));
@@ -163,7 +163,7 @@ class InventoryAndMachineServiceTest {
 
     @Test
     void collect_shouldNotWriteWhenNothingAccumulated() {
-        InventoryMachine machine = machine(NOW.minusSeconds(100));
+        InventoryMachine machine = machine(NOW.minusMillis(50));
         when(userRepository.existsById(userId)).thenReturn(true);
         when(machineRepository.findAllByUserIdForUpdate(userId))
                 .thenReturn(List.of(machine));
@@ -265,8 +265,8 @@ class InventoryAndMachineServiceTest {
         );
 
         assertEquals(false, response.installed());
-        assertEquals(20L, response.collectedCredits());
-        assertEquals(120L, response.balance().credits());
+        assertEquals(72_000L, response.collectedCredits());
+        assertEquals(72_100L, response.balance().credits());
         assertEquals(NOW, response.lastCollectedAt());
     }
 
