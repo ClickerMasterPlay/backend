@@ -150,6 +150,7 @@ class PurchaseServiceTest {
                 ProductType.TOOL,
                 "iron_pickaxe",
                 800L,
+                "credits",
                 PurchaseStatus.COMPLETED,
                 new BalanceResponse(450L, Map.of("stone", 120L)),
                 1.0
@@ -172,7 +173,7 @@ class PurchaseServiceTest {
                 ProductType.TOOL, "iron_pickaxe"
         );
         PurchaseResponse original = new PurchaseResponse(
-                UUID.randomUUID(), ProductType.TOOL, "iron_pickaxe", 800L,
+                UUID.randomUUID(), ProductType.TOOL, "iron_pickaxe", 800L, "credits",
                 PurchaseStatus.COMPLETED,
                 new BalanceResponse(0L, Map.of()), 1.0
         );
@@ -199,6 +200,7 @@ class PurchaseServiceTest {
         );
         PurchaseResponse original = new PurchaseResponse(
                 UUID.randomUUID(), ProductType.CLICK_UPGRADE, "click_power_1", 100L,
+                "credits",
                 PurchaseStatus.COMPLETED,
                 new BalanceResponse(400L, Map.of()), 1.5
         );
@@ -242,8 +244,8 @@ class PurchaseServiceTest {
     }
 
     @Test
-    void purchase_shouldDebitCreditsAndAddMachineToInventory() {
-        progress.setCredits(2000L);
+    void purchase_shouldDebitStoneWithoutChangingCreditsAndAddMachine() {
+        progress.setResources(Map.of("stone", 2000L));
         PurchaseRequest request = new PurchaseRequest(
                 ProductType.MACHINE, "basic_miner"
         );
@@ -253,7 +255,10 @@ class PurchaseServiceTest {
                 userId, idempotencyKey, request
         );
 
+        assertEquals("stone", response.priceResourceCode());
         assertEquals(500L, response.balance().credits());
+        assertEquals(500L, response.balance().resources().get("stone"));
+        assertEquals(500L, progress.getCredits());
         verify(inventoryMachineRepository).save(argThat(item ->
                 item.getUserId().equals(userId)
                         && item.getMachineCode().equals("basic_miner")
@@ -262,8 +267,44 @@ class PurchaseServiceTest {
         ));
         verify(ledgerRepository).save(argThat(entry ->
                 entry.getAmount() == -1500L
+                        && entry.getResourceAmount() == -1500L
+                        && entry.getResourceCode().equals("stone")
+                        && entry.getBalanceAfter() == 500L
                         && entry.getProductType() == ProductType.MACHINE
         ));
+        verify(challengeService).recordPurchase(userId, 0L);
+    }
+
+    @Test
+    void machinePurchase_shouldFailWhenStoneIsInsufficientWithoutUsingCredits() {
+        progress.setCredits(10_000L);
+        progress.setResources(Map.of("stone", 1499L));
+        PurchaseRequest request = new PurchaseRequest(
+                ProductType.MACHINE, "basic_miner"
+        );
+        when(purchaseRepository.findByIdempotencyKey(idempotencyKey))
+                .thenReturn(Optional.empty());
+        when(userRepository.existsById(userId)).thenReturn(true);
+        when(purchaseRepository.reserve(
+                any(UUID.class), eq(userId), eq("MACHINE"), eq("basic_miner"),
+                eq(1500L), eq(idempotencyKey)
+        )).thenReturn(1);
+        when(purchaseRepository.findById(any(UUID.class)))
+                .thenAnswer(invocation -> Optional.of(reservedPurchase(
+                        invocation.getArgument(0), request, 1500L
+                )));
+        when(progressRepository.findByUserId(userId)).thenReturn(Optional.of(progress));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> purchaseService.purchase(userId, idempotencyKey, request)
+        );
+
+        assertEquals("INSUFFICIENT_RESOURCES", exception.getErrorCode());
+        assertEquals(10_000L, progress.getCredits());
+        assertEquals(1499L, progress.getResources().get("stone"));
+        verify(inventoryMachineRepository, never()).save(any());
+        verify(ledgerRepository, never()).save(any());
     }
 
     private void stubNewPurchase(PurchaseRequest request, long price) {

@@ -125,10 +125,10 @@ class DailyRewardServiceTest {
         assertEquals(1L, dailyProgress.getTotalClaims());
         verify(claimRepository).saveAndFlush(any(DailyRewardClaim.class));
         verify(economyService).recordResourceOperation(
-                userId, LedgerOperationType.DAILY_REWARD, "stone", 15L, 0L
+                userId, LedgerOperationType.DAILY_REWARD, "stone", 15L, 20L
         );
         verify(economyService).recordResourceOperation(
-                userId, LedgerOperationType.DAILY_REWARD, "diamond", 1L, 0L
+                userId, LedgerOperationType.DAILY_REWARD, "diamond", 1L, 3L
         );
     }
 

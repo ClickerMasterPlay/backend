@@ -6,6 +6,7 @@ public record InventoryMachineResponse(
         String machineCode,
         String resourceCode,
         long productionPerHour,
+        long storageCapacity,
         long collectableAmount,
         boolean installed,
         Instant installedAt,

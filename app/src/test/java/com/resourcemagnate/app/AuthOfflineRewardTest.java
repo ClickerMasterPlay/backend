@@ -87,7 +87,7 @@ class AuthOfflineRewardTest {
                 LedgerOperationType.OFFLINE_REWARD,
                 "stone",
                 240L,
-                500L
+                240L
         );
     }
 }

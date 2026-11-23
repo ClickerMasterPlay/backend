@@ -87,6 +87,38 @@ public class EconomyService {
         progress.setResources(resources);
     }
 
+    public long debitResource(
+            PlayerProgress progress,
+            String resourceCode,
+            long amount
+    ) {
+        if (resourceCode == null || resourceCode.isBlank()) {
+            throw new IllegalArgumentException("Resource code is required");
+        }
+        if (amount < 0) {
+            throw new IllegalArgumentException("Debit amount must not be negative");
+        }
+
+        Map<String, Object> resources = new HashMap<>();
+        if (progress.getResources() != null) {
+            resources.putAll(progress.getResources());
+        }
+
+        long current = readResourceAmount(resources.get(resourceCode));
+        if (current < amount) {
+            throw new BusinessException(
+                    "INSUFFICIENT_RESOURCES",
+                    "Insufficient " + resourceCode + ": required " + amount
+                            + ", available " + current
+            );
+        }
+
+        long balanceAfter = current - amount;
+        resources.put(resourceCode, balanceAfter);
+        progress.setResources(resources);
+        return balanceAfter;
+    }
+
     public void increaseClickPower(PlayerProgress progress, double increase) {
         double current = progress.getClickPower() == null ? 1.0 : progress.getClickPower();
         double updated = current + increase;
@@ -122,7 +154,7 @@ public class EconomyService {
             LedgerOperationType operationType,
             String resourceCode,
             long resourceAmount,
-            long creditBalanceAfter
+            long resourceBalanceAfter
     ) {
         if (resourceCode == null || resourceCode.isBlank() || resourceAmount <= 0) {
             throw new IllegalArgumentException("Valid resource reward is required");
@@ -134,7 +166,37 @@ public class EconomyService {
         entry.setAmount(resourceAmount);
         entry.setResourceCode(resourceCode);
         entry.setResourceAmount(resourceAmount);
-        entry.setBalanceAfter(creditBalanceAfter);
+        entry.setBalanceAfter(resourceBalanceAfter);
+        return ledgerRepository.save(entry);
+    }
+
+    public LedgerEntry recordResourcePurchaseOperation(
+            UUID userId,
+            String resourceCode,
+            long resourceAmount,
+            ProductType productType,
+            String productId,
+            UUID purchaseId,
+            long resourceBalanceAfter
+    ) {
+        if (resourceCode == null || resourceCode.isBlank() || resourceAmount <= 0) {
+            throw new IllegalArgumentException("Valid resource price is required");
+        }
+        if (resourceBalanceAfter < 0) {
+            throw new IllegalArgumentException("Resource balance must not be negative");
+        }
+
+        LedgerEntry entry = new LedgerEntry();
+        entry.setId(UUID.randomUUID());
+        entry.setUserId(userId);
+        entry.setOperationType(LedgerOperationType.PURCHASE);
+        entry.setAmount(-resourceAmount);
+        entry.setProductType(productType);
+        entry.setProductId(productId);
+        entry.setPurchaseId(purchaseId);
+        entry.setResourceCode(resourceCode);
+        entry.setResourceAmount(-resourceAmount);
+        entry.setBalanceAfter(resourceBalanceAfter);
         return ledgerRepository.save(entry);
     }
 

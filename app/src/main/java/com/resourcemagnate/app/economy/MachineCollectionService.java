@@ -123,7 +123,8 @@ public class MachineCollectionService {
                 MachineProductionCalculator.calculate(
                         machine.getLastCollectedAt(),
                         now,
-                        product.productionPerHour()
+                        product.productionPerHour(),
+                        product.storageCapacity()
                 );
 
         if (accrual.amount() == 0) {

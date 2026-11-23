@@ -19,19 +19,20 @@ public class ProductCatalogService {
         Map<String, ProductDefinition> definitions = new LinkedHashMap<>();
         add(definitions, new ProductDefinition(
                 ProductType.CLICK_UPGRADE, "click_power_1", 100,
-                0.5, null, null, null, "+0.5 click power"
+                "credits", 0.5, null, null, null, null, "+0.5 click power"
         ));
         add(definitions, new ProductDefinition(
                 ProductType.TOOL, "wooden_pickaxe", 250,
-                null, 1.2, null, null, "x1.2 click damage"
+                "credits", null, 1.2, null, null, null, "x1.2 click damage"
         ));
         add(definitions, new ProductDefinition(
                 ProductType.TOOL, "iron_pickaxe", 800,
-                null, 1.8, null, null, "x1.8 click damage"
+                "credits", null, 1.8, null, null, null, "x1.8 click damage"
         ));
         add(definitions, new ProductDefinition(
                 ProductType.MACHINE, "basic_miner", 1500,
-                null, null, 10L, "stone", "10 stone per hour"
+                "stone", null, null, 10L, 240L, "stone",
+                "10 stone per hour, stores up to 240 stone"
         ));
         products = Map.copyOf(definitions);
     }
@@ -50,7 +51,8 @@ public class ProductCatalogService {
     public CatalogResponse getCatalog() {
         List<CatalogItemResponse> items = products.values().stream()
                 .map(product -> new CatalogItemResponse(
-                        product.type(), product.id(), product.price(), product.effect()
+                        product.type(), product.id(), product.price(),
+                        product.priceResourceCode(), product.effect()
                 ))
                 .toList();
         return new CatalogResponse(items);

@@ -130,7 +130,7 @@ public class DailyRewardService {
                         LedgerOperationType.DAILY_REWARD,
                         resourceCode,
                         amount,
-                        player.getCredits()
+                        response.resources().getOrDefault(resourceCode, 0L)
                 )
         );
         return response;

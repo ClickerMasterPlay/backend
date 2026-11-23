@@ -26,6 +26,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PurchaseService {
 
+    private static final String CREDIT_PRICE_CODE = "credits";
+
     private final PurchaseRepository purchaseRepository;
     private final InventoryToolRepository inventoryToolRepository;
     private final InventoryMachineRepository inventoryMachineRepository;
@@ -86,7 +88,14 @@ public class PurchaseService {
                         "PROGRESS_NOT_FOUND", "Player progress not found"
                 ));
 
-        economyService.debitCredits(progress, product.price());
+        Long resourceBalanceAfter = null;
+        if (CREDIT_PRICE_CODE.equals(product.priceResourceCode())) {
+            economyService.debitCredits(progress, product.price());
+        } else {
+            resourceBalanceAfter = economyService.debitResource(
+                    progress, product.priceResourceCode(), product.price()
+            );
+        }
         applyProduct(userId, progress, product);
 
         // Force the version check inside this method rather than at transaction commit.
@@ -97,6 +106,7 @@ public class PurchaseService {
                 product.type(),
                 product.id(),
                 product.price(),
+                product.priceResourceCode(),
                 PurchaseStatus.COMPLETED,
                 economyService.toBalance(progress),
                 progress.getClickPower()
@@ -106,16 +116,29 @@ public class PurchaseService {
         purchase.setResponseJson(objectMapper.valueToTree(response));
         purchaseRepository.saveAndFlush(purchase);
 
-        economyService.recordCurrencyOperation(
-                userId,
-                LedgerOperationType.PURCHASE,
-                -product.price(),
-                product.type(),
-                product.id(),
-                purchaseId,
-                progress.getCredits()
-        );
-        challengeService.recordPurchase(userId, product.price());
+        if (CREDIT_PRICE_CODE.equals(product.priceResourceCode())) {
+            economyService.recordCurrencyOperation(
+                    userId,
+                    LedgerOperationType.PURCHASE,
+                    -product.price(),
+                    product.type(),
+                    product.id(),
+                    purchaseId,
+                    progress.getCredits()
+            );
+            challengeService.recordPurchase(userId, product.price());
+        } else {
+            economyService.recordResourcePurchaseOperation(
+                    userId,
+                    product.priceResourceCode(),
+                    product.price(),
+                    product.type(),
+                    product.id(),
+                    purchaseId,
+                    resourceBalanceAfter
+            );
+            challengeService.recordPurchase(userId, 0L);
+        }
 
         return response;
     }

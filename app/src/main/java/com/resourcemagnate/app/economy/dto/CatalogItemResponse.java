@@ -6,6 +6,7 @@ public record CatalogItemResponse(
         ProductType productType,
         String productId,
         long price,
+        String priceResourceCode,
         String effect
 ) {
 }

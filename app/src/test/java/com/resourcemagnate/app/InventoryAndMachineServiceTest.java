@@ -101,6 +101,7 @@ class InventoryAndMachineServiceTest {
         assertEquals("basic_miner", response.machines().getFirst().machineCode());
         assertEquals("stone", response.machines().getFirst().resourceCode());
         assertEquals(10L, response.machines().getFirst().productionPerHour());
+        assertEquals(240L, response.machines().getFirst().storageCapacity());
         assertEquals(20L, response.machines().getFirst().collectableAmount());
     }
 
@@ -144,6 +145,24 @@ class InventoryAndMachineServiceTest {
     }
 
     @Test
+    void collect_shouldNeverCreditMoreThanMachineBank() {
+        InventoryMachine machine = machine(NOW.minusSeconds(72 * 3_600L));
+        when(userRepository.existsById(userId)).thenReturn(true);
+        when(machineRepository.findAllByUserIdForUpdate(userId))
+                .thenReturn(List.of(machine));
+        when(progressRepository.findByUserId(userId)).thenReturn(Optional.of(progress));
+        when(progressRepository.saveAndFlush(progress)).thenReturn(progress);
+
+        MachineCollectionResponse response = collectionService.collect(userId);
+
+        assertEquals(240L, response.collectedResources().get("stone"));
+        assertEquals(240L, response.balance().resources().get("stone"));
+        assertEquals(NOW, machine.getLastCollectedAt());
+        verify(progressRepository).saveAndFlush(progress);
+        verify(machineRepository).saveAll(List.of(machine));
+    }
+
+    @Test
     void collect_shouldNotWriteWhenNothingAccumulated() {
         InventoryMachine machine = machine(NOW.minusSeconds(100));
         when(userRepository.existsById(userId)).thenReturn(true);
@@ -162,7 +181,7 @@ class InventoryAndMachineServiceTest {
     @Test
     void calculator_shouldProduceTenUnitsPerHour() {
         var accrual = MachineProductionCalculator.calculate(
-                NOW.minusSeconds(9_000), NOW, 10
+                NOW.minusSeconds(9_000), NOW, 10, 240
         );
 
         assertEquals(25L, accrual.amount());
@@ -170,13 +189,33 @@ class InventoryAndMachineServiceTest {
     }
 
     @Test
-    void calculator_shouldCapOfflineProductionAtTwentyFourHours() {
+    void calculator_shouldCapOfflineProductionAtBankCapacity() {
         var accrual = MachineProductionCalculator.calculate(
-                NOW.minusSeconds(72 * 3_600L), NOW, 10
+                NOW.minusSeconds(72 * 3_600L), NOW, 10, 240
         );
 
         assertEquals(240L, accrual.amount());
         assertEquals(NOW, accrual.collectedThrough());
+    }
+
+    @Test
+    void calculator_shouldUseExplicitCapacityInsteadOfClientOnlineTime() {
+        var accrual = MachineProductionCalculator.calculate(
+                NOW.minusSeconds(72 * 3_600L), NOW, 10, 50
+        );
+
+        assertEquals(50L, accrual.amount());
+        assertEquals(NOW, accrual.collectedThrough());
+    }
+
+    @Test
+    void calculator_shouldRejectFutureCollectionTimestampWithoutReward() {
+        var accrual = MachineProductionCalculator.calculate(
+                NOW.plusSeconds(3_600), NOW, 10, 240
+        );
+
+        assertEquals(0L, accrual.amount());
+        assertEquals(NOW.plusSeconds(3_600), accrual.collectedThrough());
     }
 
     @Test

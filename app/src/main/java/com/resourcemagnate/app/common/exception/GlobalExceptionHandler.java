@@ -54,7 +54,8 @@ public class GlobalExceptionHandler {
                     HttpStatus.TOO_MANY_REQUESTS;
             case "INVALID_BATCH_SIZE" ->
                     HttpStatus.BAD_REQUEST;
-            case "INSUFFICIENT_FUNDS", "PRODUCT_ALREADY_OWNED",
+            case "INSUFFICIENT_FUNDS", "INSUFFICIENT_RESOURCES",
+                    "PRODUCT_ALREADY_OWNED",
                     "IDEMPOTENCY_KEY_REUSED", "DUPLICATE_PURCHASE",
                     "MACHINE_ALREADY_INSTALLED", "MACHINE_NOT_INSTALLED",
                     "CHALLENGE_ALREADY_CLAIMED", "CHALLENGE_NOT_AVAILABLE",

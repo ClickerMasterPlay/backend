@@ -10,6 +10,7 @@ public record PurchaseResponse(
         ProductType productType,
         String productId,
         long price,
+        String priceResourceCode,
         PurchaseStatus status,
         BalanceResponse balance,
         double clickPower

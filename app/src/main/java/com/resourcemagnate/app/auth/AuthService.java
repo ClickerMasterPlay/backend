@@ -123,7 +123,8 @@ public class AuthService {
                         LedgerOperationType.OFFLINE_REWARD,
                         resourceCode,
                         amount,
-                        progress.getCredits()
+                        offlineCollection.balance().resources()
+                                .getOrDefault(resourceCode, 0L)
                 )
         );
 
