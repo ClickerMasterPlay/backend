@@ -311,6 +311,36 @@ POST /api/v1/inventory/machines/collect
 X-User-Id: <uuid>
 ```
 
+Ответ содержит только credits, фактически доначисленные во время этого запроса,
+полный актуальный баланс, серверное время и состояние банка каждой установленной
+машины после сбора:
+
+```json
+{
+  "creditedCredits": 10,
+  "balance": {
+    "credits": 1250,
+    "resources": {}
+  },
+  "serverTime": "2026-11-23T12:00:00Z",
+  "banks": [
+    {
+      "machineCode": "basic_miner",
+      "releasedCredits": 600,
+      "filledCredits": 0,
+      "capacity": 864000,
+      "full": false
+    }
+  ]
+}
+```
+
+`creditedCredits` не включает credits, которые фоновая задача уже добавила в
+баланс ранее. `releasedCredits` показывает, сколько места было освобождено этим
+сбором; `filledCredits` и `full` отражают состояние банка после запроса. Поэтому
+клиент должен заменять отображаемый баланс значением `balance.credits`, а не
+прибавлять к нему `releasedCredits`.
+
 Снять машину:
 
 ```http

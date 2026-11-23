@@ -3,6 +3,7 @@ package com.resourcemagnate.app.economy;
 import com.resourcemagnate.app.common.exception.BusinessException;
 import com.resourcemagnate.app.economy.catalog.ProductCatalogService;
 import com.resourcemagnate.app.economy.catalog.ProductDefinition;
+import com.resourcemagnate.app.economy.dto.MachineBankStateResponse;
 import com.resourcemagnate.app.economy.dto.MachineCollectionResponse;
 import com.resourcemagnate.app.economy.dto.MachineStateResponse;
 import com.resourcemagnate.app.economy.model.InventoryMachine;
@@ -18,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -43,20 +46,21 @@ public class MachineCollectionService {
 
         Instant now = clock.instant();
         long newlyCredited = accrueFromMachines(machines, progress, now);
-        long collectedCredits = resetBanks(machines, now);
+        BankReset bankReset = resetBanks(machines, now);
 
         if (newlyCredited > 0) {
             progressRepository.saveAndFlush(progress);
             recordMachineCredits(userId, newlyCredited, progress);
         }
-        if (newlyCredited > 0 || collectedCredits > 0) {
+        if (newlyCredited > 0 || bankReset.releasedCredits() > 0) {
             machineRepository.saveAll(machines);
         }
 
         return new MachineCollectionResponse(
-                collectedCredits,
+                newlyCredited,
                 economyService.toBalance(progress),
-                now
+                now,
+                bankReset.states()
         );
     }
 
@@ -180,11 +184,12 @@ public class MachineCollectionService {
         return accrual.amount();
     }
 
-    private long resetBanks(
+    private BankReset resetBanks(
             Iterable<InventoryMachine> machines,
             Instant now
     ) {
         long total = 0L;
+        List<MachineBankStateResponse> states = new ArrayList<>();
         for (InventoryMachine machine : machines) {
             if (!machine.isInstalled()) {
                 continue;
@@ -199,8 +204,15 @@ public class MachineCollectionService {
                 machine.setLastCollectedAt(now);
             }
             machine.setBankedCredits(0L);
+            states.add(new MachineBankStateResponse(
+                    machine.getMachineCode(),
+                    bankedCredits,
+                    0L,
+                    product.storageCapacity(),
+                    false
+            ));
         }
-        return total;
+        return new BankReset(total, List.copyOf(states));
     }
 
     private void recordMachineCredits(
@@ -217,6 +229,12 @@ public class MachineCollectionService {
                 null,
                 progress.getCredits()
         );
+    }
+
+    private record BankReset(
+            long releasedCredits,
+            List<MachineBankStateResponse> states
+    ) {
     }
 
     private InventoryMachine getMachineForUpdate(UUID userId, String machineCode) {

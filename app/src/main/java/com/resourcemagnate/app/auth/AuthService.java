@@ -120,7 +120,9 @@ public class AuthService {
                 .displayName(user.getDisplayName())
                 .credits(offlineCollection.balance().credits())
                 .clickPower(progress.getClickPower())
-                .offlineCredits(offlineCollection.collectedCredits())
+                .offlineCredits(offlineCollection.banks().stream()
+                        .mapToLong(bank -> bank.releasedCredits())
+                        .sum())
                 .build();
     }
 

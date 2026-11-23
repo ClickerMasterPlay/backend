@@ -4,6 +4,7 @@ import com.resourcemagnate.app.auth.AuthService;
 import com.resourcemagnate.app.auth.dto.AuthResponse;
 import com.resourcemagnate.app.economy.MachineCollectionService;
 import com.resourcemagnate.app.economy.dto.BalanceResponse;
+import com.resourcemagnate.app.economy.dto.MachineBankStateResponse;
 import com.resourcemagnate.app.economy.dto.MachineCollectionResponse;
 import com.resourcemagnate.app.progress.PlayerProgress;
 import com.resourcemagnate.app.progress.PlayerProgressRepository;
@@ -19,6 +20,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Map;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -57,9 +59,12 @@ class AuthOfflineRewardTest {
                 .thenReturn(Optional.of(progress));
         when(machineCollectionService.collect(userId)).thenReturn(
                 new MachineCollectionResponse(
-                        240L,
+                        0L,
                         new BalanceResponse(740L, Map.of()),
-                        now
+                        now,
+                        List.of(new MachineBankStateResponse(
+                                "basic_miner", 240L, 0L, 864_000L, false
+                        ))
                 )
         );
 
@@ -107,7 +112,10 @@ class AuthOfflineRewardTest {
                 new MachineCollectionResponse(
                         0L,
                         new BalanceResponse(500L, Map.of()),
-                        now
+                        now,
+                        List.of(new MachineBankStateResponse(
+                                "basic_miner", 0L, 0L, 864_000L, false
+                        ))
                 )
         );
 

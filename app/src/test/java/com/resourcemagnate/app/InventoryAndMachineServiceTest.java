@@ -137,8 +137,13 @@ class InventoryAndMachineServiceTest {
 
         MachineCollectionResponse response = collectionService.collect(userId);
 
-        assertEquals(81_000L, response.collectedCredits());
+        assertEquals(81_000L, response.creditedCredits());
         assertEquals(81_100L, response.balance().credits());
+        assertEquals(81_000L, response.banks().getFirst().releasedCredits());
+        assertEquals(0L, response.banks().getFirst().filledCredits());
+        assertEquals(864_000L, response.banks().getFirst().capacity());
+        assertEquals(false, response.banks().getFirst().full());
+        assertEquals(NOW, response.serverTime());
         assertEquals(NOW, machine.getLastCollectedAt());
         verify(progressRepository).saveAndFlush(progress);
         verify(machineRepository).saveAll(List.of(machine));
@@ -155,7 +160,7 @@ class InventoryAndMachineServiceTest {
 
         MachineCollectionResponse response = collectionService.collect(userId);
 
-        assertEquals(864_000L, response.collectedCredits());
+        assertEquals(864_000L, response.creditedCredits());
         assertEquals(864_100L, response.balance().credits());
         assertEquals(NOW, machine.getLastCollectedAt());
         verify(progressRepository).saveAndFlush(progress);
@@ -183,8 +188,9 @@ class InventoryAndMachineServiceTest {
         when(userRepository.existsById(userId)).thenReturn(true);
         MachineCollectionResponse response = collectionService.collect(userId);
 
-        assertEquals(600L, response.collectedCredits());
+        assertEquals(0L, response.creditedCredits());
         assertEquals(700L, response.balance().credits());
+        assertEquals(600L, response.banks().getFirst().releasedCredits());
         assertEquals(0L, machine.getBankedCredits());
         verify(progressRepository, times(1)).saveAndFlush(progress);
         verify(machineRepository, times(2)).saveAll(List.of(machine));
@@ -208,13 +214,15 @@ class InventoryAndMachineServiceTest {
         when(userRepository.existsById(userId)).thenReturn(true);
         MachineCollectionResponse response = collectionService.collect(userId);
 
-        assertEquals(864_000L, response.collectedCredits());
+        assertEquals(0L, response.creditedCredits());
         assertEquals(100L, response.balance().credits());
+        assertEquals(864_000L, response.banks().getFirst().releasedCredits());
         assertEquals(0L, machine.getBankedCredits());
         assertEquals(NOW, machine.getLastCollectedAt());
 
         MachineCollectionResponse immediateRepeat = collectionService.collect(userId);
-        assertEquals(0L, immediateRepeat.collectedCredits());
+        assertEquals(0L, immediateRepeat.creditedCredits());
+        assertEquals(0L, immediateRepeat.banks().getFirst().releasedCredits());
         assertEquals(100L, immediateRepeat.balance().credits());
         verify(progressRepository, never()).saveAndFlush(any());
     }
@@ -229,7 +237,7 @@ class InventoryAndMachineServiceTest {
 
         MachineCollectionResponse response = collectionService.collect(userId);
 
-        assertEquals(0L, response.collectedCredits());
+        assertEquals(0L, response.creditedCredits());
         assertEquals(new BalanceResponse(100L, Map.of()), response.balance());
         verify(progressRepository, never()).saveAndFlush(any());
         verify(machineRepository, never()).saveAll(any());
