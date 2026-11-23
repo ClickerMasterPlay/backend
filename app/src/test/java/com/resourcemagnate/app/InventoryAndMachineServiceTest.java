@@ -194,11 +194,18 @@ class InventoryAndMachineServiceTest {
     void collect_shouldDiscardProductionTimeWhileBankWasFull() {
         InventoryMachine machine = machine(NOW.minusSeconds(3_600));
         machine.setBankedCredits(864_000L);
-        when(userRepository.existsById(userId)).thenReturn(true);
         when(machineRepository.findAllByUserIdForUpdate(userId))
                 .thenReturn(List.of(machine));
         when(progressRepository.findByUserId(userId)).thenReturn(Optional.of(progress));
 
+        collectionService.accrueInBackground(userId);
+
+        assertEquals(100L, progress.getCredits());
+        assertEquals(864_000L, machine.getBankedCredits());
+        verify(progressRepository, never()).saveAndFlush(any());
+        verify(machineRepository, never()).saveAll(any());
+
+        when(userRepository.existsById(userId)).thenReturn(true);
         MachineCollectionResponse response = collectionService.collect(userId);
 
         assertEquals(864_000L, response.collectedCredits());
