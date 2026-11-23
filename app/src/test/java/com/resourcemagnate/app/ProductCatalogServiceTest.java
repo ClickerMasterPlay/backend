@@ -41,15 +41,67 @@ class ProductCatalogServiceTest {
         assertOneSecondProduction("elite_miner", now, 200L);
     }
 
+    @Test
+    void calculator_shouldCarryFractionalTimeIntoNextCollection() {
+        Instant startedAt = Instant.parse("2026-11-23T12:00:00Z");
+        ProductDefinition machine = catalog.get(
+                ProductType.MACHINE, "basic_miner"
+        );
+
+        var first = MachineProductionCalculator.calculate(
+                startedAt,
+                startedAt.plusMillis(1_050),
+                machine.creditsPerHour(),
+                machine.storageCapacity()
+        );
+        var second = MachineProductionCalculator.calculate(
+                first.collectedThrough(),
+                startedAt.plusMillis(1_100),
+                machine.creditsPerHour(),
+                machine.storageCapacity()
+        );
+
+        assertEquals(10L, first.amount());
+        assertEquals(startedAt.plusSeconds(1), first.collectedThrough());
+        assertEquals(1L, second.amount());
+        assertEquals(startedAt.plusMillis(1_100), second.collectedThrough());
+    }
+
+    @Test
+    void calculator_shouldNotMoveCursorBeforeWholeCreditIsEarned() {
+        Instant startedAt = Instant.parse("2026-11-23T12:00:00Z");
+        ProductDefinition machine = catalog.get(
+                ProductType.MACHINE, "basic_miner"
+        );
+
+        var tooEarly = MachineProductionCalculator.calculate(
+                startedAt,
+                startedAt.plusMillis(90),
+                machine.creditsPerHour(),
+                machine.storageCapacity()
+        );
+        var enoughTime = MachineProductionCalculator.calculate(
+                tooEarly.collectedThrough(),
+                startedAt.plusMillis(100),
+                machine.creditsPerHour(),
+                machine.storageCapacity()
+        );
+
+        assertEquals(0L, tooEarly.amount());
+        assertEquals(startedAt, tooEarly.collectedThrough());
+        assertEquals(1L, enoughTime.amount());
+        assertEquals(startedAt.plusMillis(100), enoughTime.collectedThrough());
+    }
+
     private void assertMachine(
             String id,
             long price,
-            long productionPerHour,
+            long creditsPerHour,
             long storageCapacity
     ) {
         ProductDefinition machine = catalog.get(ProductType.MACHINE, id);
         assertEquals(price, machine.price());
-        assertEquals(productionPerHour, machine.productionPerHour());
+        assertEquals(creditsPerHour, machine.creditsPerHour());
         assertEquals(storageCapacity, machine.storageCapacity());
     }
 
@@ -62,7 +114,7 @@ class ProductCatalogServiceTest {
         var accrual = MachineProductionCalculator.calculate(
                 now.minusSeconds(1),
                 now,
-                machine.productionPerHour(),
+                machine.creditsPerHour(),
                 machine.storageCapacity()
         );
         assertEquals(expectedCredits, accrual.amount());

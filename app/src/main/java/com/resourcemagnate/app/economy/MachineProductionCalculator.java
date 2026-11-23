@@ -16,14 +16,14 @@ public final class MachineProductionCalculator {
     public static Accrual calculate(
             Instant lastCollectedAt,
             Instant now,
-            long productionPerHour,
+            long creditsPerHour,
             long storageCapacity
     ) {
         if (lastCollectedAt == null || now == null) {
             throw new IllegalArgumentException("Collection timestamps are required");
         }
-        if (productionPerHour <= 0) {
-            throw new IllegalArgumentException("Invalid machine production rate");
+        if (creditsPerHour <= 0) {
+            throw new IllegalArgumentException("Invalid machine credit rate");
         }
         if (storageCapacity <= 0) {
             throw new IllegalArgumentException("Invalid machine storage capacity");
@@ -38,7 +38,7 @@ public final class MachineProductionCalculator {
                 : lastCollectedAt;
         BigInteger elapsedNanos = elapsedNanos(effectiveStart, now);
         BigInteger produced = elapsedNanos
-                .multiply(BigInteger.valueOf(productionPerHour))
+                .multiply(BigInteger.valueOf(creditsPerHour))
                 .divide(NANOS_PER_HOUR);
         BigInteger capacity = BigInteger.valueOf(storageCapacity);
 
@@ -55,7 +55,7 @@ public final class MachineProductionCalculator {
 
         BigInteger consumedNanos = divideCeiling(
                 BigInteger.valueOf(amount).multiply(NANOS_PER_HOUR),
-                BigInteger.valueOf(productionPerHour)
+                BigInteger.valueOf(creditsPerHour)
         );
         BigInteger[] secondsAndNanos = consumedNanos.divideAndRemainder(NANOS_PER_SECOND);
         Instant collectedThrough = effectiveStart

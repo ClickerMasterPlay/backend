@@ -8,7 +8,7 @@ public record ProductDefinition(
         long price,
         Double clickPowerIncrease,
         Double toolMultiplier,
-        Long productionPerHour,
+        Long creditsPerHour,
         Long storageCapacity,
         String effect
 ) {

@@ -99,7 +99,7 @@ class InventoryAndMachineServiceTest {
         assertEquals(false, response.tools().getFirst().equipped());
         assertEquals(1, response.machines().size());
         assertEquals("basic_miner", response.machines().getFirst().machineCode());
-        assertEquals(36_000L, response.machines().getFirst().productionPerHour());
+        assertEquals(36_000L, response.machines().getFirst().creditsPerHour());
         assertEquals(864_000L, response.machines().getFirst().storageCapacity());
         assertEquals(72_000L, response.machines().getFirst().collectableCredits());
     }

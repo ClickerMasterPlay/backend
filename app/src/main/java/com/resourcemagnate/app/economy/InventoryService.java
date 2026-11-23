@@ -66,13 +66,13 @@ public class InventoryService {
                             ? MachineProductionCalculator.calculate(
                                     item.getLastCollectedAt(),
                                     now,
-                                    product.productionPerHour(),
+                                    product.creditsPerHour(),
                                     product.storageCapacity()
                             ).amount()
                             : 0L;
                     return new InventoryMachineResponse(
                             item.getMachineCode(),
-                            product.productionPerHour(),
+                            product.creditsPerHour(),
                             product.storageCapacity(),
                             collectable,
                             item.isInstalled(),

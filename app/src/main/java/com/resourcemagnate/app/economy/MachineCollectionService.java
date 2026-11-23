@@ -122,7 +122,7 @@ public class MachineCollectionService {
                 MachineProductionCalculator.calculate(
                         machine.getLastCollectedAt(),
                         now,
-                        product.productionPerHour(),
+                        product.creditsPerHour(),
                         product.storageCapacity()
                 );
 
