@@ -43,8 +43,9 @@ curl "http://localhost:8080/api/v1/leaderboard?top=100" \
 ```
 
 ### Как работает рейтинг
-- **Формула счёта**: `credits + totalResourcesValue + clickPower×10 + toolMultiplier×5`
+- **Формула счёта**: `score = credits` (без весов ресурсов, силы клика и кирки)
 - **Кэш в Redis**: Sorted Set `leaderboard:scores` — обновляется в реальном времени при кликах/покупках
+- **Обновление при чтении**: `GET /api/v1/leaderboard` и `POST /api/v1/leaderboard/refresh` автоматически обновляют счёт игрока перед возвратом данных
 - **Фоновое пересчитывание**: каждые 5 минут (`@Scheduled`) полный пересчёт для всех игроков
 - **Фолбэк**: если в Redis пусто — сервис сам делает `refreshFullLeaderboard()` и отдаёт данные
 
@@ -113,6 +114,7 @@ curl "http://localhost:8080/api/v1/leaderboard?top=100" \
 - [ ] Обновлять баланс `credits` после `click-batch` и `collect` (теперь приходит в ответе)
 - [ ] Показывать новые продукты в магазине (каталог расширен)
 - [ ] В заданиях разрешить claim любого выполненного (не только видимых 3)
+- [ ] Подключить endpoints системы друзей (`/api/v1/friends/*`)
 
 ---
 
@@ -164,5 +166,99 @@ curl "http://localhost:8080/api/v1/leaderboard?top=100" \
 |-------|-----|----------|
 | `GET` | `/api/v1/leaderboard?top=100` | Топ + моё место |
 | `POST` | `/api/v1/leaderboard/refresh` | Принудительное обновление своего счёта |
+
+### Friends (Stage 7)
+| Метод | URL | Для чего |
+|-------|-----|----------|
+| `POST` | `/api/v1/friends/invite?email=...` | Пригласить друга по email |
+| `POST` | `/api/v1/friends/{friendId}/accept` | Принять приглашение |
+| `POST` | `/api/v1/friends/{friendId}/block` | Заблокировать друга |
+| `GET` | `/api/v1/friends` | Список принятых друзей |
+| `GET` | `/api/v1/friends/pending` | Список входящих приглашений |
+| `GET` | `/api/v1/friends/leaderboard` | Рейтинг друзей (топ + моё место) |
+
+#### Примеры ответов
+
+**Invite:**
+```json
+{
+  "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+  "userId": "a1b2c3d4-...",
+  "friendId": "d82038b7-...",
+  "status": "PENDING",
+  "displayName": "Player2",
+  "email": "player2@example.com",
+  "score": 1500,
+  "rank": null
+}
+```
+
+**Accepted friends list:**
+```json
+[
+  {
+    "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "userId": "a1b2c3d4-...",
+    "friendId": "d82038b7-...",
+    "status": "ACCEPTED",
+    "displayName": "Player2",
+    "email": "player2@example.com",
+    "score": 1500,
+    "rank": 5
+  }
+]
+```
+
+**Pending invitations:**
+```json
+[
+  {
+    "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "userId": "a1b2c3d4-...",
+    "friendId": "d82038b7-...",
+    "status": "PENDING",
+    "displayName": "Player2",
+    "email": "player2@example.com",
+    "score": 1500,
+    "rank": null
+  }
+]
+```
+
+**Friend leaderboard:**
+```json
+{
+  "top": [
+    {
+      "rank": 1,
+      "userId": "d82038b7-...",
+      "displayName": "Player2",
+      "score": 1500,
+      "credits": 1500,
+      "totalResourcesValue": 0,
+      "clickPower": 1.0
+    }
+  ],
+  "me": {
+    "rank": 4,
+    "userId": "198df77e-...",
+    "displayName": null,
+    "score": 1200,
+    "credits": 1200,
+    "totalResourcesValue": 0,
+    "clickPower": 1.0
+  },
+  "totalPlayers": 5,
+  "friendCount": 4
+}
+```
+
+#### Как работает система друзей
+- **Приглашение**: ищет пользователя по email; нельзя приглашать гостей или самого себя; нельзя дублировать существующее отношение
+- **Статусы**: `PENDING` → `ACCEPTED` / `BLOCKED`
+- **Принятие**: меняет статус приглашения с `PENDING` на `ACCEPTED`
+- **Блокировка**: создаёт или обновляет запись со статусом `BLOCKED`
+- **Список друзей**: возвращает только `ACCEPTED` (в обоих направлениях)
+- **Рейтинг друзей**: фильтрует глобальный рейтинг по id принятых друзей + текущего пользователя
 
 ---

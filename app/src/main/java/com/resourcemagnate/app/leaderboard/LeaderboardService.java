@@ -48,6 +48,9 @@ public class LeaderboardService {
             topLimit = DEFAULT_TOP_LIMIT;
         }
 
+        // Обновляем счёт игрока перед чтением, чтобы не было расхождения
+        updatePlayerScore(userId);
+
         List<LeaderboardEntry> top = getTopFromRedis(topLimit);
         LeaderboardEntry me = getMyEntry(userId);
         long totalPlayers = getTotalPlayersFromRedis();
@@ -107,11 +110,14 @@ public class LeaderboardService {
     }
 
     private LeaderboardEntry getMyEntry(UUID userId) {
+        // Обновляем счёт игрока перед чтением
+        updatePlayerScore(userId);
+        
         Long rank = redisTemplate.opsForZSet().reverseRank(REDIS_KEY, userId.toString());
         Double score = redisTemplate.opsForZSet().score(REDIS_KEY, userId.toString());
 
         if (rank == null || score == null) {
-            return refreshAndGetMyEntry(userId);
+            return null;
         }
 
         User user = userRepository.findById(userId).orElse(null);
@@ -215,13 +221,21 @@ public class LeaderboardService {
     }
 
     private List<LeaderboardEntry> refreshAndGetTop(int limit) {
-        refreshFullLeaderboard();
+        // Обновляем только счёт запрашивающего игрока, а не всех
+        if (!allPlayersInRedis()) {
+            refreshFullLeaderboard();
+        }
         return getTopFromRedis(limit);
     }
 
     private LeaderboardEntry refreshAndGetMyEntry(UUID userId) {
-        refreshFullLeaderboard();
+        updatePlayerScore(userId);
         return getMyEntry(userId);
+    }
+
+    private boolean allPlayersInRedis() {
+        Long count = redisTemplate.opsForZSet().zCard(REDIS_KEY);
+        return count != null && count > 0;
     }
 
     private record ScoredUser(UUID userId, long score, ScoreCalculator.ScoreBreakdown breakdown) {}
